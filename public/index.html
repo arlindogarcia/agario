@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agar.io Clone - Entrar</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="lobby">
+  <div class="container">
+    <div class="form-container">
+      <form id="joinForm">
+        <div class="form-group">
+          <label for="playerName">Nome do Jogador</label>
+          <input
+            type="text"
+            id="playerName"
+            name="playerName"
+            placeholder="Digite seu nome"
+            maxlength="20"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="avatarUpload">Foto do Avatar</label>
+
+          <!-- Upload personalizado -->
+          <div class="avatar-section">
+            <div class="section-title">Upload Personalizado</div>
+            <div class="upload-area" id="uploadArea">
+              <input
+                type="file"
+                id="avatarUpload"
+                name="avatarUpload"
+                accept="image/*"
+                hidden
+              >
+              <div class="upload-placeholder" id="uploadPlaceholder">
+                <span class="upload-icon">📷</span>
+                <span>Clique para fazer upload</span>
+                <small>JPG, PNG ou GIF (max 5MB)</small>
+              </div>
+              <div class="preview-container" id="previewContainer" style="display: none;">
+                <img id="avatarPreview" src="" alt="Preview">
+                <button type="button" class="btn-remove" id="removeAvatar">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Galeria de avatares pré-definidos -->
+          <div class="avatar-section">
+            <div class="section-title">Ou escolha um avatar:</div>
+            <div class="avatar-gallery" id="avatarGallery">
+              <div class="avatar-loading">Carregando avatares...</div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-play" id="btnPlay">
+          <span class="btn-text">JOGAR</span>
+        </button>
+      </form>
+  </div>
+
+  <script src="/js/lobby.js"></script>
+</body>
+</html>

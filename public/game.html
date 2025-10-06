@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agar.io Clone - Jogando</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="game">
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="game-ui">
+    <div class="score-display">
+      <div>Score</div>
+      <div id="playerScore">0</div>
+    </div>
+
+    <div class="leaderboard">
+      <h3>🏆 Ranking</h3>
+      <ol id="leaderboardList">
+        <li>Carregando...</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="controls-hint">
+    <div class="control-item">
+      <span class="key">MOUSE</span>
+      <span>Mover</span>
+    </div>
+    <div class="control-item">
+      <span class="key">ESPAÇO</span>
+      <span>Dividir</span>
+    </div>
+    <div class="control-item">
+      <span class="key">W</span>
+      <span>Ejetar</span>
+    </div>
+  </div>
+
+  <!-- Minimapa -->
+  <div class="minimap">
+    <canvas id="minimapCanvas"></canvas>
+  </div>
+
+  <!-- Chat -->
+  <div class="chat-container">
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-container">
+      <input type="text" id="chatInput" placeholder="Digite para conversar..." maxlength="100">
+      <button id="chatSend">➤</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/game.js"></script>
+</body>
+</html>

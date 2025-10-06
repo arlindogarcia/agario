@@ -1,0 +1,42 @@
+[
+  {
+    "id": "1",
+    "name": "",
+    "file": "avatar1.png"
+  },
+  {
+    "id": "2",
+    "name": "",
+    "file": "avatar2.png"
+  },
+  {
+    "id": "3",
+    "name": "",
+    "file": "avatar3.png"
+  },
+  {
+    "id": "rindo",
+    "name": "Rindo",
+    "file": "avatar4.svg"
+  },
+  {
+    "id": "serio",
+    "name": "Sério",
+    "file": "avatar5.svg"
+  },
+  {
+    "id": "animado",
+    "name": "Animado",
+    "file": "avatar6.svg"
+  },
+  {
+    "id": "dormindo",
+    "name": "Dormindo",
+    "file": "avatar7.svg"
+  },
+  {
+    "id": "gritando",
+    "name": "Gritando",
+    "file": "avatar8.svg"
+  }
+]
