@@ -27,6 +27,8 @@ let socket;
 let playerId = null;
 let playerName = null;
 let gameState = null;
+let previousGameState = null;
+let lastUpdateTime = Date.now();
 let camera = { x: 0, y: 0, zoom: 1 };
 let mouse = { x: 0, y: 0 };
 let avatarImages = new Map();
@@ -59,7 +61,10 @@ function init() {
   });
 
   socket.on('update', (data) => {
+    // Armazenar estado anterior para interpolação
+    previousGameState = gameState;
     gameState = data;
+    lastUpdateTime = Date.now();
     updateUI();
   });
 
@@ -84,10 +89,21 @@ function init() {
 
 // Configurar controles
 function setupInputHandlers() {
+  // Throttle para movimento do mouse - enviar apenas a cada 50ms (20x/segundo)
+  let lastMoveTime = 0;
+  const MOVE_THROTTLE = 50;
+
   // Movimento do mouse
   canvas.addEventListener('mousemove', (e) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
+
+    // Throttle - só enviar se passou tempo suficiente
+    const now = Date.now();
+    if (now - lastMoveTime < MOVE_THROTTLE) {
+      return;
+    }
+    lastMoveTime = now;
 
     // Garantir que zoom é válido
     const safeZoom = Math.max(0.1, Math.min(2, camera.zoom));
@@ -136,6 +152,39 @@ function updateUI() {
       })
       .join('');
   }
+}
+
+// Interpolar estado do jogo para movimento suave
+function getInterpolatedState() {
+  if (!gameState || !previousGameState) return gameState;
+
+  const now = Date.now();
+  const timeSinceUpdate = now - lastUpdateTime;
+  const serverTickRate = 1000 / 30; // 30 FPS do servidor
+
+  // Fator de interpolação (0 a 1)
+  const t = Math.min(timeSinceUpdate / serverTickRate, 1);
+
+  // Interpolar apenas posições de células
+  const interpolatedState = JSON.parse(JSON.stringify(gameState));
+
+  if (interpolatedState.players && previousGameState.players) {
+    interpolatedState.players.forEach(player => {
+      const prevPlayer = previousGameState.players.find(p => p.id === player.id);
+      if (prevPlayer && prevPlayer.cells && player.cells) {
+        player.cells.forEach((cell, i) => {
+          const prevCell = prevPlayer.cells[i];
+          if (prevCell) {
+            // Interpolar posição
+            cell.x = prevCell.x + (cell.x - prevCell.x) * t;
+            cell.y = prevCell.y + (cell.y - prevCell.y) * t;
+          }
+        });
+      }
+    });
+  }
+
+  return interpolatedState;
 }
 
 // Loop principal do jogo
@@ -192,6 +241,9 @@ function render() {
 
   if (!gameState) return;
 
+  // Usar estado interpolado para renderização suave
+  const state = getInterpolatedState();
+
   ctx.save();
 
   // Aplicar transformação da câmera
@@ -203,25 +255,25 @@ function render() {
   drawGrid();
 
   // Desenhar bordas do mundo
-  drawWorldBorders();
+  drawWorldBorders(state);
 
   // Desenhar comida
-  if (gameState.food) {
-    gameState.food.forEach(food => {
+  if (state.food) {
+    state.food.forEach(food => {
       drawFood(food);
     });
   }
 
   // Desenhar células dos jogadores
-  if (gameState.players) {
-    gameState.players.forEach(player => {
+  if (state.players) {
+    state.players.forEach(player => {
       player.cells.forEach(cell => {
         drawCell(cell, player);
       });
     });
 
     // Desenhar nomes por cima
-    gameState.players.forEach(player => {
+    state.players.forEach(player => {
       player.cells.forEach(cell => {
         drawCellName(cell, player);
       });
@@ -258,12 +310,12 @@ function drawGrid() {
 }
 
 // Desenhar bordas do mundo
-function drawWorldBorders() {
-  if (!gameState.worldSize) return;
+function drawWorldBorders(state) {
+  if (!state.worldSize) return;
 
   ctx.strokeStyle = '#ff0000';
   ctx.lineWidth = 10 / camera.zoom;
-  ctx.strokeRect(0, 0, gameState.worldSize.width, gameState.worldSize.height);
+  ctx.strokeRect(0, 0, state.worldSize.width, state.worldSize.height);
 }
 
 // Desenhar comida
@@ -343,16 +395,20 @@ function drawCellName(cell, player) {
 function renderMinimap() {
   if (!gameState || !gameState.worldSize) return;
 
+  // Usar estado interpolado
+  const state = getInterpolatedState();
+  if (!state) return;
+
   // Limpar minimapa
   minimapCtx.fillStyle = '#1a1a1a';
   minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
 
-  const scaleX = minimapCanvas.width / gameState.worldSize.width;
-  const scaleY = minimapCanvas.height / gameState.worldSize.height;
+  const scaleX = minimapCanvas.width / state.worldSize.width;
+  const scaleY = minimapCanvas.height / state.worldSize.height;
 
   // Desenhar jogadores
-  if (gameState.players) {
-    gameState.players.forEach(player => {
+  if (state.players) {
+    state.players.forEach(player => {
       player.cells.forEach(cell => {
         const x = cell.x * scaleX;
         const y = cell.y * scaleY;

@@ -110,7 +110,7 @@ class Game {
     this.checkFoodCollisions();
 
     // Regenerar comida se necessário
-    if (this.food.size < 500) {
+    if (this.food.size < 1500) {
       this.generateFood(10);
     }
   }
@@ -177,11 +177,49 @@ class Game {
       }));
   }
 
-  // Obter estado do jogo para enviar aos clientes
-  getState() {
+  // Obter estado do jogo para enviar aos clientes (com viewport culling opcional)
+  getState(playerId = null, viewportSize = null) {
+    let players = Array.from(this.players.values()).map(p => p.serialize());
+    let food = Array.from(this.food.values()).map(f => f.serialize());
+
+    // Viewport culling: se um jogador específico e viewport foram fornecidos
+    if (playerId && viewportSize) {
+      const player = this.players.get(playerId);
+      if (player && player.cells.length > 0) {
+        // Calcular centro do viewport do jogador
+        let centerX = 0, centerY = 0;
+        player.cells.forEach(cell => {
+          centerX += cell.x;
+          centerY += cell.y;
+        });
+        centerX /= player.cells.length;
+        centerY /= player.cells.length;
+
+        // Margem extra para evitar pop-in
+        const margin = 200;
+        const minX = centerX - viewportSize.width / 2 - margin;
+        const maxX = centerX + viewportSize.width / 2 + margin;
+        const minY = centerY - viewportSize.height / 2 - margin;
+        const maxY = centerY + viewportSize.height / 2 + margin;
+
+        // Filtrar comida apenas no viewport (maior economia de banda)
+        food = food.filter(f =>
+          f.x >= minX && f.x <= maxX && f.y >= minY && f.y <= maxY
+        );
+
+        // Filtrar células de jogadores fora do viewport
+        players = players.map(p => {
+          const visibleCells = p.cells.filter(c =>
+            c.x >= minX && c.x <= maxX && c.y >= minY && c.y <= maxY
+          );
+          return visibleCells.length > 0 ? { ...p, cells: visibleCells } : null;
+        }).filter(p => p !== null);
+      }
+    }
+
     return {
-      players: Array.from(this.players.values()).map(p => p.serialize()),
-      food: Array.from(this.food.values()).map(f => f.serialize()),
+      players,
+      food,
       leaderboard: this.getLeaderboard(),
       worldSize: {
         width: this.width,

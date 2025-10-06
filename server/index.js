@@ -130,13 +130,45 @@ io.on('connection', (socket) => {
   });
 });
 
-// Loop do jogo - 60 FPS
-const TICK_RATE = 1000 / 60;
+// Loop do jogo - 30 FPS (otimizado para reduzir lag em produção)
+const TICK_RATE = 1000 / 30;
+let lastLeaderboard = null;
+
 setInterval(() => {
   game.update();
 
-  // Enviar estado do jogo para todos os clientes
-  io.emit('update', game.getState());
+  // Enviar estado individualizado para cada jogador (viewport culling)
+  io.sockets.sockets.forEach((socket) => {
+    const playerId = socket.id;
+    const player = game.players.get(playerId);
+
+    if (!player) return;
+
+    // Calcular tamanho do viewport baseado no tamanho do jogador
+    const totalRadius = player.cells.reduce((sum, cell) => sum + cell.radius, 0);
+    const avgRadius = totalRadius / player.cells.length;
+    const zoom = Math.max(0.5, Math.min(1, 60 / avgRadius));
+
+    // Viewport size aproximado (tela típica / zoom)
+    const viewportSize = {
+      width: 1920 / zoom,
+      height: 1080 / zoom
+    };
+
+    // Obter estado filtrado por viewport
+    const gameState = game.getState(playerId, viewportSize);
+
+    // Otimizar leaderboard - só enviar se mudou
+    const currentLeaderboard = JSON.stringify(gameState.leaderboard);
+    if (currentLeaderboard === lastLeaderboard) {
+      delete gameState.leaderboard;
+    } else {
+      lastLeaderboard = currentLeaderboard;
+    }
+
+    // Enviar apenas para este jogador
+    socket.emit('update', gameState);
+  });
 }, TICK_RATE);
 
 // Iniciar servidor
