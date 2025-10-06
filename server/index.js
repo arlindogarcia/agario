@@ -102,6 +102,11 @@ io.on('connection', (socket) => {
     game.ejectMass(socket.id);
   });
 
+  // Shoot (atirar projétil explosivo) - PODER ESPECIAL!
+  socket.on('shoot', () => {
+    game.shootProjectile(socket.id);
+  });
+
   // Chat
   socket.on('chat', (data) => {
     const player = game.players.get(socket.id);

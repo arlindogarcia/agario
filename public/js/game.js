@@ -33,8 +33,45 @@ let camera = { x: 0, y: 0, zoom: 1 };
 let mouse = { x: 0, y: 0 };
 let avatarImages = new Map();
 
+// Backgrounds animados
+let backgroundImages = [];
+let currentBackgroundIndex = 0;
+let lastBackgroundChange = Date.now();
+const BACKGROUND_CHANGE_INTERVAL = 5000; // 5 segundos
+
+// Carregar backgrounds (sincronizado com background.js)
+async function loadBackgrounds() {
+  const backgrounds = [
+    '/backgrounds/background1.png'
+  ];
+
+  for (const bgPath of backgrounds) {
+    try {
+      const response = await fetch(bgPath, { method: 'HEAD' });
+      if (response.ok) {
+        const img = new Image();
+        img.src = bgPath;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        backgroundImages.push(img);
+      }
+    } catch (e) {
+      // Imagem não existe, continuar
+    }
+  }
+
+  if (backgroundImages.length > 0) {
+    console.log(`🎨 ${backgroundImages.length} background(s) carregado(s) para o jogo!`);
+  }
+}
+
 // Conectar ao servidor
 function init() {
+  // Carregar backgrounds primeiro
+  loadBackgrounds();
+
   // Obter dados do jogador
   const playerData = JSON.parse(localStorage.getItem('playerData') || '{}');
 
@@ -84,6 +121,26 @@ function init() {
     addChatMessage(data.name, data.message, false, data.id === playerId);
   });
 
+  // Projétil disparado
+  socket.on('projectileFired', (data) => {
+    // Som ou feedback visual (opcional)
+    console.log(`${data.playerName} atirou um projétil!`);
+  });
+
+  // Jogador explodido
+  socket.on('playerExploded', (data) => {
+    // Criar efeito visual de explosão
+    createExplosionEffect(data.x, data.y);
+
+    if (data.victimId === playerId) {
+      // Você foi explodido!
+      showNotification('💥 Você foi EXPLODIDO!', 'danger');
+    } else if (data.shooterId === playerId) {
+      // Você explodiu alguém!
+      showNotification('💥 EXPLOSÃO! Você acertou ' + data.victimName, 'success');
+    }
+  });
+
   // Eventos de input
   setupInputHandlers();
   setupChatHandlers();
@@ -130,7 +187,16 @@ function setupInputHandlers() {
     } else if (e.code === 'KeyW') {
       e.preventDefault();
       socket.emit('eject');
+    } else if (e.code === 'KeyE') {
+      e.preventDefault();
+      socket.emit('shoot');
     }
+  });
+
+  // Clique direito também atira
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    socket.emit('shoot');
   });
 }
 
@@ -195,6 +261,7 @@ function gameLoop() {
   if (gameState) {
     updateCamera();
     render();
+    updateAndDrawExplosions(); // Desenhar explosões por cima
   }
   requestAnimationFrame(gameLoop);
 }
@@ -238,8 +305,8 @@ function updateCamera() {
 
 // Renderizar o jogo
 function render() {
-  // Limpar canvas
-  ctx.fillStyle = '#f0f0f0';
+  // Limpar canvas com cor de fundo escura
+  ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (!gameState) return;
@@ -254,6 +321,9 @@ function render() {
   ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
 
+  // Desenhar background animado
+  drawBackground();
+
   // Desenhar grid
   drawGrid();
 
@@ -264,6 +334,13 @@ function render() {
   if (state.food) {
     state.food.forEach(food => {
       drawFood(food);
+    });
+  }
+
+  // Desenhar projéteis
+  if (state.projectiles) {
+    state.projectiles.forEach(projectile => {
+      drawProjectile(projectile);
     });
   }
 
@@ -284,6 +361,34 @@ function render() {
   }
 
   ctx.restore();
+}
+
+// Desenhar background animado
+function drawBackground() {
+  if (backgroundImages.length === 0) return;
+
+  // Alternar background a cada 5 segundos
+  const now = Date.now();
+  if (now - lastBackgroundChange > BACKGROUND_CHANGE_INTERVAL) {
+    currentBackgroundIndex = (currentBackgroundIndex + 1) % backgroundImages.length;
+    lastBackgroundChange = now;
+  }
+
+  const bgImg = backgroundImages[currentBackgroundIndex];
+  if (!bgImg) return;
+
+  // Calcular dimensões para cobrir o mundo do jogo
+  const worldWidth = gameState.worldSize ? gameState.worldSize.width : 3000;
+  const worldHeight = gameState.worldSize ? gameState.worldSize.height : 3000;
+
+  // Desenhar background cobrindo todo o mundo
+  ctx.globalAlpha = 0.4; // Semi-transparente mas bem visível
+  ctx.drawImage(bgImg, 0, 0, worldWidth, worldHeight);
+  ctx.globalAlpha = 1.0;
+
+  // Overlay escuro para melhor contraste e visibilidade das células
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(0, 0, worldWidth, worldHeight);
 }
 
 // Desenhar grid de fundo
@@ -327,6 +432,36 @@ function drawFood(food) {
   ctx.beginPath();
   ctx.arc(food.x, food.y, food.radius, 0, Math.PI * 2);
   ctx.fill();
+}
+
+// Desenhar projétil (tiro explosivo)
+function drawProjectile(projectile) {
+  // Núcleo vermelho brilhante
+  ctx.shadowColor = '#ff0000';
+  ctx.shadowBlur = 20 / camera.zoom;
+  ctx.fillStyle = '#ff0000';
+  ctx.beginPath();
+  ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Anel externo amarelo
+  ctx.shadowColor = '#ffff00';
+  ctx.shadowBlur = 15 / camera.zoom;
+  ctx.strokeStyle = '#ffaa00';
+  ctx.lineWidth = 3 / camera.zoom;
+  ctx.beginPath();
+  ctx.arc(projectile.x, projectile.y, projectile.radius + 3, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Brilho branco no centro
+  ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.beginPath();
+  ctx.arc(projectile.x, projectile.y, projectile.radius / 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Resetar sombra
+  ctx.shadowColor = 'transparent';
 }
 
 // Desenhar célula
@@ -480,6 +615,11 @@ function addChatMessage(name, message, isSystem = false, isOwn = false) {
       messageDiv.classList.add('kill');
     }
 
+    // Detectar mensagens de explosão
+    if (message.includes('explodiu') || message.includes('💥')) {
+      messageDiv.classList.add('explosion');
+    }
+
     messageDiv.textContent = message.startsWith('•') ? message : `• ${message}`;
   } else {
     if (isOwn) {
@@ -510,6 +650,126 @@ function gameLoop() {
     renderMinimap();
   }
   requestAnimationFrame(gameLoop);
+}
+
+// ============= NOTIFICAÇÕES =============
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 20px 40px;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+    z-index: 10000;
+    animation: slideDown 0.3s ease-out;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+
+  if (type === 'danger') {
+    notification.style.background = 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)';
+  } else if (type === 'success') {
+    notification.style.background = 'linear-gradient(135deg, #00ff88 0%, #00cc44 100%)';
+  } else {
+    notification.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+  }
+
+  notification.textContent = message;
+  document.body.appendChild(notification);
+
+  // Adicionar animação
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideDown {
+      from {
+        top: -100px;
+        opacity: 0;
+      }
+      to {
+        top: 100px;
+        opacity: 1;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Remover após 3 segundos
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.top = '-100px';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// ============= EFEITO DE EXPLOSÃO =============
+let explosions = [];
+
+function createExplosionEffect(x, y) {
+  const explosion = {
+    x: x,
+    y: y,
+    particles: [],
+    createdAt: Date.now()
+  };
+
+  // Criar 20 partículas em todas as direções
+  for (let i = 0; i < 20; i++) {
+    const angle = (Math.PI * 2 / 20) * i;
+    const speed = 10 + Math.random() * 10;
+
+    explosion.particles.push({
+      x: x,
+      y: y,
+      speedX: Math.cos(angle) * speed,
+      speedY: Math.sin(angle) * speed,
+      size: 5 + Math.random() * 5,
+      color: ['#ff0000', '#ff6600', '#ffaa00', '#ffff00'][Math.floor(Math.random() * 4)],
+      life: 1.0
+    });
+  }
+
+  explosions.push(explosion);
+}
+
+function updateAndDrawExplosions() {
+  const now = Date.now();
+
+  explosions = explosions.filter(explosion => {
+    const age = now - explosion.createdAt;
+    if (age > 1000) return false; // Remover após 1 segundo
+
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(camera.zoom, camera.zoom);
+    ctx.translate(-camera.x, -camera.y);
+
+    explosion.particles.forEach(particle => {
+      // Atualizar partícula
+      particle.x += particle.speedX;
+      particle.y += particle.speedY;
+      particle.speedX *= 0.95; // Fricção
+      particle.speedY *= 0.95;
+      particle.life -= 0.02;
+
+      if (particle.life > 0) {
+        // Desenhar partícula
+        ctx.globalAlpha = particle.life;
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+
+    return true;
+  });
 }
 
 // ============= TELA DE MORTE =============

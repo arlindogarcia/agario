@@ -1,17 +1,20 @@
 const Player = require('../entities/Player');
 const Food = require('../entities/Food');
+const Projectile = require('../entities/Projectile');
 
 class Game {
   constructor() {
-    this.width = 2000;
-    this.height = 2000;
+    this.width = 3000;
+    this.height = 3000;
     this.players = new Map();
     this.food = new Map();
+    this.projectiles = new Map();
     this.foodIdCounter = 0;
+    this.projectileIdCounter = 0;
     this.io = null; // Referência ao socket.io para emitir eventos
 
     // Gerar comida inicial
-    this.generateFood(3000);
+    this.generateFood(1000);
   }
 
   // Definir referência do socket.io
@@ -81,6 +84,34 @@ class Game {
     }
   }
 
+  // Atirar projétil explosivo - PODER ESPECIAL!
+  shootProjectile(playerId) {
+    const player = this.players.get(playerId);
+    if (!player) return;
+
+    const projectileData = player.shoot();
+    if (!projectileData) return; // Cooldown ou não tem massa suficiente
+
+    // Criar projétil
+    const projectile = new Projectile(
+      `projectile-${this.projectileIdCounter++}`,
+      projectileData.x,
+      projectileData.y,
+      projectileData.angle,
+      playerId
+    );
+
+    this.projectiles.set(projectile.id, projectile);
+
+    // Notificar todos os jogadores sobre o tiro
+    if (this.io) {
+      this.io.emit('projectileFired', {
+        playerId: playerId,
+        playerName: player.name
+      });
+    }
+  }
+
   // Gerar comida aleatória
   generateFood(count) {
     for (let i = 0; i < count; i++) {
@@ -109,6 +140,21 @@ class Game {
       food.y = Math.max(food.radius, Math.min(this.height - food.radius, food.y));
     });
 
+    // Atualizar projéteis
+    this.projectiles.forEach((projectile, id) => {
+      projectile.update();
+
+      // Remover se expirou ou saiu do mapa
+      if (projectile.isExpired() ||
+          projectile.x < 0 || projectile.x > this.width ||
+          projectile.y < 0 || projectile.y > this.height) {
+        this.projectiles.delete(id);
+      }
+    });
+
+    // Colisões de projéteis com jogadores
+    this.checkProjectileCollisions();
+
     // Colisões entre jogadores
     this.checkPlayerCollisions();
 
@@ -117,7 +163,84 @@ class Game {
 
     // Regenerar comida se necessário
     if (this.food.size < 1500) {
-      this.generateFood(10);
+      this.generateFood(200);
+    }
+  }
+
+  // Verificar colisões de projéteis com jogadores
+  checkProjectileCollisions() {
+    this.projectiles.forEach((projectile, projectileId) => {
+      this.players.forEach((player, playerId) => {
+        // Não pode atingir quem atirou
+        if (playerId === projectile.ownerId) return;
+
+        player.cells.forEach(cell => {
+          if (projectile.collidesWith(cell)) {
+            // EXPLOSÃO! Dividir o jogador em 8 células pequenas
+            this.explodePlayer(player, cell);
+
+            // Remover projétil
+            this.projectiles.delete(projectileId);
+
+            // Notificar sobre a explosão
+            if (this.io) {
+              const shooter = this.players.get(projectile.ownerId);
+              this.io.emit('playerExploded', {
+                victimId: playerId,
+                victimName: player.name,
+                shooterId: projectile.ownerId,
+                shooterName: shooter ? shooter.name : 'Desconhecido',
+                x: cell.x,
+                y: cell.y
+              });
+
+              // Mensagem no chat
+              this.io.emit('chat', {
+                id: 'system',
+                name: 'Sistema',
+                message: `💥 ${shooter ? shooter.name : 'Alguém'} explodiu ${player.name}!`
+              });
+            }
+          }
+        });
+      });
+    });
+  }
+
+  // Explodir jogador em células pequenas
+  explodePlayer(player, hitCell) {
+    const Cell = require('../entities/Cell');
+
+    // Remover a célula atingida
+    const cellIndex = player.cells.indexOf(hitCell);
+    if (cellIndex > -1) {
+      player.cells.splice(cellIndex, 1);
+    }
+
+    // Criar 8 células pequenas em um círculo ao redor da explosão
+    const numFragments = 8;
+    const fragmentMass = hitCell.mass / numFragments;
+
+    for (let i = 0; i < numFragments; i++) {
+      const angle = (Math.PI * 2 / numFragments) * i;
+      const distance = hitCell.radius * 0.5;
+
+      const fragment = new Cell(
+        `${player.id}-fragment-${Date.now()}-${i}`,
+        hitCell.x + Math.cos(angle) * distance,
+        hitCell.y + Math.sin(angle) * distance,
+        Math.sqrt(fragmentMass * 100),
+        player.color
+      );
+
+      // Dar impulso para fora
+      fragment.speedX = Math.cos(angle) * 15;
+      fragment.speedY = Math.sin(angle) * 15;
+      fragment.mass = fragmentMass;
+      fragment.splitTime = Date.now();
+      fragment.splitBoostUntil = Date.now() + 300;
+
+      player.cells.push(fragment);
     }
   }
 
@@ -246,6 +369,7 @@ class Game {
     return {
       players,
       food,
+      projectiles: Array.from(this.projectiles.values()).map(p => p.serialize()),
       leaderboard: this.getLeaderboard(),
       worldSize: {
         width: this.width,

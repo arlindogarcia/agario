@@ -11,6 +11,7 @@ class Player {
     this.score = 0;
     this.lastSplitTime = 0;
     this.lastEjectTime = 0;
+    this.lastShootTime = 0;
 
     // Criar célula inicial
     this.spawnCell();
@@ -131,6 +132,36 @@ class Player {
     });
 
     this.lastEjectTime = now;
+  }
+
+  // Atirar projétil explosivo - PODER ESPECIAL!
+  shoot() {
+    const now = Date.now();
+    // Cooldown de 5 segundos (5000ms)
+    if (now - this.lastShootTime < 5000) return null;
+
+    // Precisa ter pelo menos 50 de massa para atirar
+    if (this.cells.length === 0 || this.cells[0].mass < 50) return null;
+
+    const cell = this.cells[0]; // Célula principal
+    const angle = Math.atan2(
+      this.target.y - cell.y,
+      this.target.x - cell.x
+    );
+
+    // Custo: perde 20% da massa
+    const massCost = cell.mass * 0.2;
+    cell.mass -= massCost;
+    cell.radius = Math.sqrt(cell.mass * 100);
+
+    this.lastShootTime = now;
+
+    // Retornar dados do projétil
+    return {
+      x: cell.x + Math.cos(angle) * (cell.radius + 15),
+      y: cell.y + Math.sin(angle) * (cell.radius + 15),
+      angle: angle
+    };
   }
 
   // Recombinar células após um tempo
