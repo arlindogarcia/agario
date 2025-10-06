@@ -4,8 +4,8 @@ const Projectile = require('../entities/Projectile');
 
 class Game {
   constructor() {
-    this.width = 3000;
-    this.height = 3000;
+    this.width = 4000;
+    this.height = 4000;
     this.players = new Map();
     this.food = new Map();
     this.projectiles = new Map();
@@ -14,7 +14,7 @@ class Game {
     this.io = null; // Referência ao socket.io para emitir eventos
 
     // Gerar comida inicial
-    this.generateFood(1000);
+    this.generateFood(800);
   }
 
   // Definir referência do socket.io
@@ -163,7 +163,7 @@ class Game {
 
     // Regenerar comida se necessário
     if (this.food.size < 1500) {
-      this.generateFood(200);
+      this.generateFood(10);
     }
   }
 
