@@ -8,9 +8,15 @@ class Game {
     this.players = new Map();
     this.food = new Map();
     this.foodIdCounter = 0;
+    this.io = null; // Referência ao socket.io para emitir eventos
 
     // Gerar comida inicial
     this.generateFood(3000);
+  }
+
+  // Definir referência do socket.io
+  setIO(io) {
+    this.io = io;
   }
 
   // Adicionar jogador
@@ -141,15 +147,35 @@ class Game {
           });
         });
 
-        // Remover jogadores mortos
+        // Verificar se algum jogador morreu e notificar
         if (!playerA.isAlive()) {
+          this.handlePlayerDeath(playerA, playerB);
           this.removePlayer(playerA.id);
         }
         if (!playerB.isAlive()) {
+          this.handlePlayerDeath(playerB, playerA);
           this.removePlayer(playerB.id);
         }
       }
     }
+  }
+
+  // Lidar com morte de jogador
+  handlePlayerDeath(deadPlayer, killer) {
+    if (!this.io) return;
+
+    // Notificar o jogador que morreu
+    this.io.to(deadPlayer.id).emit('playerDied', {
+      killer: killer.name,
+      killerScore: Math.round(killer.score)
+    });
+
+    // Mensagem no chat para todos
+    this.io.emit('chat', {
+      id: 'system',
+      name: 'Sistema',
+      message: `💀 ${killer.name} eliminou ${deadPlayer.name}!`
+    });
   }
 
   // Verificar colisões com comida

@@ -61,6 +61,7 @@ app.post('/upload-avatar', upload.single('avatar'), (req, res) => {
 
 // Inicializar o jogo
 const game = new Game();
+game.setIO(io); // Passar referência do socket.io para o game
 
 // Socket.io - Gerenciamento de conexões
 io.on('connection', (socket) => {

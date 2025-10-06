@@ -459,6 +459,28 @@ body.game {
   font-size: 0.85rem;
 }
 
+.chat-message.system.kill {
+  color: #ff4444;
+  font-weight: bold;
+  font-style: normal;
+  background: rgba(255, 68, 68, 0.15);
+  padding: 8px 10px;
+  border-radius: 5px;
+  border-left: 3px solid #ff4444;
+  animation: killFlash 0.5s ease-out;
+}
+
+@keyframes killFlash {
+  0% {
+    background: rgba(255, 68, 68, 0.4);
+    transform: scale(1.02);
+  }
+  100% {
+    background: rgba(255, 68, 68, 0.15);
+    transform: scale(1);
+  }
+}
+
 .chat-message.own {
   color: #00FF41;
 }

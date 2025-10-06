@@ -74,6 +74,11 @@ function init() {
     window.location.href = '/';
   });
 
+  // Jogador morreu
+  socket.on('playerDied', (data) => {
+    showDeathScreen(data.killer, data.killerScore);
+  });
+
   // Chat
   socket.on('chat', (data) => {
     addChatMessage(data.name, data.message, false, data.id === playerId);
@@ -469,7 +474,13 @@ function addChatMessage(name, message, isSystem = false, isOwn = false) {
 
   if (isSystem) {
     messageDiv.classList.add('system');
-    messageDiv.textContent = `• ${message}`;
+
+    // Detectar mensagens de kill (eliminações)
+    if (message.includes('eliminou') || message.includes('💀')) {
+      messageDiv.classList.add('kill');
+    }
+
+    messageDiv.textContent = message.startsWith('•') ? message : `• ${message}`;
   } else {
     if (isOwn) {
       messageDiv.classList.add('own');
@@ -478,7 +489,7 @@ function addChatMessage(name, message, isSystem = false, isOwn = false) {
     nameSpan.className = 'player-name';
     nameSpan.textContent = name + ':';
     messageDiv.appendChild(nameSpan);
-    messageDiv.appendChild(document.createTextNode(message));
+    messageDiv.appendChild(document.createTextNode(' ' + message));
   }
 
   chatMessages.appendChild(messageDiv);
@@ -499,6 +510,74 @@ function gameLoop() {
     renderMinimap();
   }
   requestAnimationFrame(gameLoop);
+}
+
+// ============= TELA DE MORTE =============
+function showDeathScreen(killerName, killerScore) {
+  // Criar overlay de morte
+  const deathOverlay = document.createElement('div');
+  deathOverlay.id = 'deathOverlay';
+  deathOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease-in;
+  `;
+
+  deathOverlay.innerHTML = `
+    <div style="text-align: center; color: white; font-family: Arial, sans-serif;">
+      <div style="font-size: 72px; margin-bottom: 20px; animation: pulse 1s infinite;">💀</div>
+      <h1 style="font-size: 48px; margin: 0 0 20px 0; color: #ff4444;">Você Morreu!</h1>
+      <p style="font-size: 24px; margin: 10px 0; color: #ffaa00;">
+        Eliminado por: <strong style="color: #00ff88;">${killerName}</strong>
+      </p>
+      <p style="font-size: 18px; margin: 5px 0; color: #aaa;">
+        Score do assassino: ${killerScore}
+      </p>
+      <p style="font-size: 18px; margin: 20px 0 30px 0; color: #aaa;">
+        Seu score final: <strong style="color: white;">${document.getElementById('playerScore').textContent}</strong>
+      </p>
+      <button onclick="window.location.href='/'" style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 20px;
+        border-radius: 50px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: transform 0.2s, box-shadow 0.2s;
+        margin: 5px;
+      " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)'"
+         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+        ⟲ Jogar Novamente
+      </button>
+    </div>
+  `;
+
+  // Adicionar animação CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.body.appendChild(deathOverlay);
 }
 
 // Iniciar o jogo
