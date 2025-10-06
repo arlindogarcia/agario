@@ -130,7 +130,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Loop do jogo - 30 FPS (otimizado para reduzir lag em produção)
 const TICK_RATE = 1000 / 30;
 let lastLeaderboard = null;
 

@@ -16,9 +16,9 @@ class Cell {
     this.x += this.speedX;
     this.y += this.speedY;
 
-    // Aplicar fricção (menor durante split boost)
+    // Aplicar fricção reduzida para movimento mais fluido
     const now = Date.now();
-    const friction = now < this.splitBoostUntil ? 0.92 : 0.85;
+    const friction = now < this.splitBoostUntil ? 0.94 : 0.90; // Era 0.92/0.85, agora menos fricção
     this.speedX *= friction;
     this.speedY *= friction;
   }
@@ -62,7 +62,10 @@ class Cell {
 
   // Obter velocidade baseada no tamanho (células maiores são mais lentas)
   getSpeed() {
-    return 2.5 - (this.radius / 100);
+    // Velocidade aumentada para gameplay mais dinâmico
+    const baseSpeed = 5.5; // Era 2.5, agora 5.5 (2.2x mais rápido)
+    const slowdown = this.radius / 80; // Era /100, agora /80 (menos penalidade por tamanho)
+    return Math.max(2, baseSpeed - slowdown); // Velocidade mínima de 2
   }
 
   // Serializar para enviar ao cliente

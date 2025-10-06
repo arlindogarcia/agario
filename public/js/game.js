@@ -89,9 +89,8 @@ function init() {
 
 // Configurar controles
 function setupInputHandlers() {
-  // Throttle para movimento do mouse - enviar apenas a cada 50ms (20x/segundo)
   let lastMoveTime = 0;
-  const MOVE_THROTTLE = 50;
+  const MOVE_THROTTLE = 30;
 
   // Movimento do mouse
   canvas.addEventListener('mousemove', (e) => {
@@ -160,10 +159,9 @@ function getInterpolatedState() {
 
   const now = Date.now();
   const timeSinceUpdate = now - lastUpdateTime;
-  const serverTickRate = 1000 / 30; // 30 FPS do servidor
+  const serverTickRate = 1000 / 30;
 
-  // Fator de interpolação (0 a 1)
-  const t = Math.min(timeSinceUpdate / serverTickRate, 1);
+  const t = Math.min(timeSinceUpdate / serverTickRate, 1.2);
 
   // Interpolar apenas posições de células
   const interpolatedState = JSON.parse(JSON.stringify(gameState));
@@ -215,17 +213,17 @@ function updateCamera() {
   centerX /= player.cells.length;
   centerY /= player.cells.length;
 
-  // Smooth camera
-  camera.x += (centerX - camera.x) * 0.1;
-  camera.y += (centerY - camera.y) * 0.1;
+  // Smooth camera - mais responsiva para gameplay rápido
+  camera.x += (centerX - camera.x) * 0.18; // Era 0.1, agora 0.18
+  camera.y += (centerY - camera.y) * 0.18;
 
-  // Zoom baseado no tamanho total do jogador (mais suave)
+  // Zoom baseado no tamanho total do jogador
   const totalRadius = player.cells.reduce((sum, cell) => sum + cell.radius, 0);
   const avgRadius = totalRadius / player.cells.length;
 
   // Zoom mais conservador - não fica tão pequeno
   const targetZoom = Math.max(0.5, Math.min(1, 60 / avgRadius));
-  camera.zoom += (targetZoom - camera.zoom) * 0.03; // Transição mais suave
+  camera.zoom += (targetZoom - camera.zoom) * 0.05; // Era 0.03, agora 0.05 (mais rápido)
 
   // Garantir que valores são válidos
   camera.x = isFinite(camera.x) ? camera.x : 0;
