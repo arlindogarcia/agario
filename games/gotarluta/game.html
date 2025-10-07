@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GotarFighter - Fight!</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="game-arena">
+  <!-- HUD -->
+  <div class="hud">
+    <!-- Player 1 Info (Left) -->
+    <div class="player-hud player-left">
+      <div class="player-info">
+        <img id="player1Avatar" class="player-avatar" src="" alt="P1">
+        <span id="player1Name" class="player-name">Player 1</span>
+      </div>
+      <div class="health-bar-container">
+        <div id="player1Health" class="health-bar" style="width: 100%;"></div>
+      </div>
+      <div id="player1HP" class="hp-text">100 HP</div>
+    </div>
+
+    <!-- Center Info -->
+    <div class="center-hud">
+      <div id="roundInfo" class="round-info">Round 1</div>
+      <div id="scoreInfo" class="score-info">
+        <span id="player1Rounds" class="rounds-won">0</span>
+        <span class="separator">-</span>
+        <span id="player2Rounds" class="rounds-won">0</span>
+      </div>
+      <div id="countdown" class="countdown" style="display: none;">3</div>
+      <div id="roundResult" class="round-result" style="display: none;"></div>
+    </div>
+
+    <!-- Player 2 Info (Right) -->
+    <div class="player-hud player-right">
+      <div class="player-info">
+        <span id="player2Name" class="player-name">Player 2</span>
+        <img id="player2Avatar" class="player-avatar" src="" alt="P2">
+      </div>
+      <div class="health-bar-container">
+        <div id="player2Health" class="health-bar" style="width: 100%;"></div>
+      </div>
+      <div id="player2HP" class="hp-text">100 HP</div>
+    </div>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Controls Info -->
+  <div class="controls-hint">
+    <div class="control-group">
+      <span class="key">←→</span> Mover
+      <span class="key">↑</span> Pular
+      <span class="key">↓</span> Bloquear
+    </div>
+    <div class="control-group">
+      <span class="key">A</span> Soco
+      <span class="key">S</span> Chute
+      <span class="key">SPACE</span> Especial
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="game-over-screen" style="display: none;">
+    <div class="game-over-content">
+      <h1 id="gameOverTitle" class="game-over-title"></h1>
+      <p id="gameOverText" class="game-over-text"></p>
+      <button id="btnRematch" class="btn-rematch">Revanche</button>
+      <button id="btnBackToLobby" class="btn-back">Voltar ao Lobby</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

@@ -6,6 +6,7 @@ const multer = require('multer');
 const fs = require('fs');
 
 const Game = require('./game/Game');
+const FightGame = require('./game/FightGame');
 
 const app = express();
 const server = http.createServer(app);
@@ -91,6 +92,10 @@ app.post('/upload-avatar', upload.single('avatar'), (req, res) => {
 const game = new Game();
 game.setIO(io); // Passar referência do socket.io para o game
 
+// Inicializar o jogo de luta
+const fightGame = new FightGame();
+fightGame.setIO(io);
+
 // Socket.io - Gerenciamento de conexões
 io.on('connection', (socket) => {
   console.log(`Novo jogador conectado: ${socket.id}`);
@@ -160,13 +165,49 @@ io.on('connection', (socket) => {
       });
     }
     game.removePlayer(socket.id);
+
+    // Handle fight game disconnect
+    fightGame.handleDisconnect(socket.id);
+
     console.log(`Jogador desconectado: ${socket.id}`);
+  });
+
+  // ===== FIGHT GAME HANDLERS =====
+
+  // Join matchmaking queue
+  socket.on('fight:joinQueue', (playerData) => {
+    console.log(`🎮 [FIGHT] Player joining queue:`, playerData);
+    fightGame.joinQueue(socket.id, playerData);
+  });
+
+  // Leave matchmaking queue
+  socket.on('fight:leaveQueue', () => {
+    fightGame.leaveQueue(socket.id);
+  });
+
+  // Join game (reconnect with new socket ID)
+  socket.on('fight:joinGame', (data) => {
+    console.log(`🎮 [FIGHT] Player joining game:`, data);
+    const result = fightGame.joinGame(socket.id, data.roomId);
+    
+    if (result.success) {
+      socket.emit('gameJoined', result);
+    } else {
+      console.error(`❌ Failed to join game:`, result.error);
+      socket.emit('error', { message: result.error });
+    }
+  });
+
+  // Update player input
+  socket.on('fight:input', (input) => {
+    fightGame.updatePlayerInput(socket.id, input);
   });
 });
 
 const TICK_RATE = 1000 / 30;
 let lastLeaderboard = null;
 
+// Game update loop (Gotargario)
 setInterval(() => {
   game.update();
 
@@ -202,6 +243,24 @@ setInterval(() => {
     // Enviar apenas para este jogador
     socket.emit('update', gameState);
   });
+}, TICK_RATE);
+
+// Fight game update loop
+let fightLoopCount = 0;
+setInterval(() => {
+  // Update all active fight rooms
+  const roomCount = fightGame.rooms.size;
+
+  if (roomCount > 0) {
+    fightLoopCount++;
+    if (fightLoopCount % 30 === 0) { // Log every second
+      console.log(`🔄 Fight game loop running... Active rooms: ${roomCount}`);
+    }
+
+    for (const [roomId, room] of fightGame.rooms) {
+      fightGame.updateRoom(roomId, TICK_RATE);
+    }
+  }
 }, TICK_RATE);
 
 // Iniciar servidor

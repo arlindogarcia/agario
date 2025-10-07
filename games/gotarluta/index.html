@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GotarFighter - Multiplayer Fighting Game</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="lobby">
+  <a href="../../index.html" class="back-button">← Voltar</a>
+
+  <div class="container">
+    <div class="form-container">
+      <h1 class="game-title">🥊 GOTARFIGHTER 🥊</h1>
+      <p class="game-subtitle">Multiplayer Stickman Fighting</p>
+
+      <form id="joinForm">
+        <div class="form-group">
+          <label for="playerName">Nome do Lutador</label>
+          <input
+            type="text"
+            id="playerName"
+            name="playerName"
+            placeholder="Digite seu nome"
+            maxlength="20"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="avatarUpload">Escolha seu Avatar</label>
+
+          <!-- Upload personalizado -->
+          <div class="avatar-section">
+            <div class="section-title">Upload Personalizado</div>
+            <div class="upload-area" id="uploadArea">
+              <input
+                type="file"
+                id="avatarUpload"
+                name="avatarUpload"
+                accept="image/*"
+                hidden
+              >
+              <div class="upload-placeholder" id="uploadPlaceholder">
+                <span class="upload-icon">📷</span>
+                <span>Clique para fazer upload</span>
+                <small>JPG, PNG ou GIF (max 5MB)</small>
+              </div>
+              <div class="preview-container" id="previewContainer" style="display: none;">
+                <img id="avatarPreview" src="" alt="Preview">
+                <button type="button" class="btn-remove" id="removeAvatar">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Galeria de avatares pré-definidos -->
+          <div class="avatar-section">
+            <div class="section-title">Ou escolha um avatar:</div>
+            <div class="avatar-gallery" id="avatarGallery">
+              <div class="avatar-loading">Carregando avatares...</div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-fight" id="btnFight">
+          <span class="btn-text">ENTRAR NA FILA</span>
+        </button>
+      </form>
+
+      <!-- Matchmaking Status -->
+      <div id="matchmakingStatus" class="matchmaking-status" style="display: none;">
+        <div class="spinner"></div>
+        <p class="status-text">Procurando oponente...</p>
+        <p class="queue-info"><span id="queueCount">0</span> jogadores na fila</p>
+        <button type="button" class="btn-cancel" id="btnCancel">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="js/lobby.js"></script>
+</body>
+</html>
