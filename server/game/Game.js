@@ -13,6 +13,11 @@ class Game {
     this.projectileIdCounter = 0;
     this.io = null; // Referência ao socket.io para emitir eventos
 
+    // Sistema de vitória
+    this.winScore = 5000; // Pontuação para ganhar
+    this.gameOver = false;
+    this.resetTimer = null;
+
     // Gerar comida inicial
     this.generateFood(800);
   }
@@ -126,6 +131,9 @@ class Game {
 
   // Atualizar estado do jogo
   update() {
+    // Não atualizar se o jogo acabou
+    if (this.gameOver) return;
+
     // Atualizar jogadores
     this.players.forEach(player => {
       player.update(this.width, this.height);
@@ -165,6 +173,9 @@ class Game {
     if (this.food.size < 1500) {
       this.generateFood(10);
     }
+
+    // Verificar vitória
+    this.checkWinCondition();
   }
 
   // Verificar colisões de projéteis com jogadores
@@ -324,6 +335,84 @@ class Game {
         name: player.name,
         score: Math.round(player.score)
       }));
+  }
+
+  // Verificar condição de vitória
+  checkWinCondition() {
+    if (this.gameOver) return;
+
+    // Verificar se algum jogador atingiu a pontuação de vitória
+    this.players.forEach(player => {
+      if (player.score >= this.winScore) {
+        this.handleGameWin(player);
+      }
+    });
+  }
+
+  // Lidar com vitória
+  handleGameWin(winner) {
+    this.gameOver = true;
+
+    if (!this.io) return;
+
+    // Notificar todos os jogadores
+    this.io.emit('gameWinner', {
+      winnerId: winner.id,
+      winnerName: winner.name,
+      winnerScore: Math.round(winner.score)
+    });
+
+    // Mensagem no chat
+    this.io.emit('chat', {
+      id: 'system',
+      name: 'Sistema',
+      message: `🏆 ${winner.name} VENCEU com ${Math.round(winner.score)} pontos!`
+    });
+
+    console.log(`🏆 ${winner.name} venceu o jogo!`);
+
+    // Agendar reset do jogo em 10 segundos
+    this.resetTimer = setTimeout(() => {
+      this.resetGame();
+    }, 10000);
+  }
+
+  // Resetar o jogo
+  resetGame() {
+    console.log('🔄 Resetando o jogo...');
+
+    // Limpar timer se existir
+    if (this.resetTimer) {
+      clearTimeout(this.resetTimer);
+      this.resetTimer = null;
+    }
+
+    // Resetar jogadores (manter conectados mas resetar posição e score)
+    this.players.forEach(player => {
+      player.reset();
+    });
+
+    // Limpar comida e gerar nova
+    this.food.clear();
+    this.generateFood(800);
+
+    // Limpar projéteis
+    this.projectiles.clear();
+
+    // Resetar estado do jogo
+    this.gameOver = false;
+
+    // Notificar todos sobre o reset
+    if (this.io) {
+      this.io.emit('gameReset');
+      this.io.emit('chat', {
+        id: 'system',
+        name: 'Sistema',
+        message: '🔄 Novo jogo começou!'
+      });
+    }
+
+    console.log('✅ Jogo resetado com sucesso!');
   }
 
   // Obter estado do jogo para enviar aos clientes (com viewport culling opcional)

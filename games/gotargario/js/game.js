@@ -142,6 +142,16 @@ function init() {
     }
   });
 
+  // Jogador venceu
+  socket.on('gameWinner', (data) => {
+    showWinnerScreen(data.winnerName, data.winnerScore, data.winnerId === playerId);
+  });
+
+  // Jogo resetado
+  socket.on('gameReset', () => {
+    hideWinnerScreen();
+  });
+
   // Eventos de input
   setupInputHandlers();
   setupChatHandlers();
@@ -719,6 +729,105 @@ function showNotification(message, type = 'info') {
     notification.style.top = '-100px';
     setTimeout(() => notification.remove(), 300);
   }, 3000);
+}
+
+// ============= TELA DE VITÓRIA =============
+function showWinnerScreen(winnerName, winnerScore, isMe) {
+  // Remover tela existente se houver
+  hideWinnerScreen();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'winnerOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    animation: fadeIn 0.5s ease-out;
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 60px 80px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: scaleIn 0.5s ease-out;
+    color: white;
+  `;
+
+  const trophy = isMe ? '🏆' : '🎉';
+  const title = isMe ? 'VOCÊ VENCEU!' : 'VITÓRIA!';
+  const color = isMe ? '#FFD700' : '#FFF';
+
+  box.innerHTML = `
+    <div style="font-size: 100px; margin-bottom: 20px;">${trophy}</div>
+    <h1 style="font-size: 48px; margin: 0; color: ${color}; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">${title}</h1>
+    <p style="font-size: 32px; margin: 20px 0; opacity: 0.9;">
+      ${isMe ? 'Parabéns!' : winnerName + ' venceu!'}
+    </p>
+    <p style="font-size: 24px; margin: 10px 0; opacity: 0.8;">
+      Pontuação: <strong>${winnerScore}</strong>
+    </p>
+    <p style="font-size: 18px; margin-top: 40px; opacity: 0.7;">
+      ⏱️ Reiniciando em <span id="countdown">10</span> segundos...
+    </p>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Adicionar animações
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes scaleIn {
+      from {
+        transform: scale(0.5);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Countdown de 10 segundos
+  let timeLeft = 10;
+  const countdownInterval = setInterval(() => {
+    timeLeft--;
+    const countdownEl = document.getElementById('countdown');
+    if (countdownEl) {
+      countdownEl.textContent = timeLeft;
+    }
+    if (timeLeft <= 0) {
+      clearInterval(countdownInterval);
+    }
+  }, 1000);
+}
+
+function hideWinnerScreen() {
+  const overlay = document.getElementById('winnerOverlay');
+  if (overlay) {
+    overlay.style.animation = 'fadeOut 0.3s ease-out';
+    setTimeout(() => overlay.remove(), 300);
+  }
 }
 
 // ============= EFEITO DE EXPLOSÃO =============

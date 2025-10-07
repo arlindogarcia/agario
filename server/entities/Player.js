@@ -188,6 +188,23 @@ class Player {
     }
   }
 
+  // Resetar jogador para novo jogo
+  reset() {
+    // Limpar células atuais
+    this.cells = [];
+
+    // Resetar score
+    this.score = 0;
+
+    // Resetar timers
+    this.lastSplitTime = 0;
+    this.lastEjectTime = 0;
+    this.lastShootTime = 0;
+
+    // Criar nova célula inicial
+    this.spawnCell();
+  }
+
   // Verificar se o jogador ainda está vivo
   isAlive() {
     return this.cells.length > 0;
