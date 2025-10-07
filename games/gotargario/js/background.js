@@ -1,7 +1,7 @@
 // Sistema de alternância de backgrounds
 (function() {
   const backgrounds = [
-    '/backgrounds/background1.png',
+    '/games/gotargario/backgrounds/background1.png',
   ];
 
   let currentIndex = 0;

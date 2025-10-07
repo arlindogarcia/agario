@@ -42,7 +42,7 @@ const BACKGROUND_CHANGE_INTERVAL = 5000; // 5 segundos
 // Carregar backgrounds (sincronizado com background.js)
 async function loadBackgrounds() {
   const backgrounds = [
-    '/backgrounds/background1.png'
+    '/games/gotargario/backgrounds/background1.png'
   ];
 
   for (const bgPath of backgrounds) {
