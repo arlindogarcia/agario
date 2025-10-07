@@ -97,7 +97,9 @@ class FightGame {
       roundState: 'countdown', // countdown, fighting, roundOver, matchOver
       roundTimer: 3000, // Countdown from 3
       roundStartTime: Date.now(),
-      winner: null
+      winner: null,
+      reconnectedFighters: new Set(), // Track which fighters have reconnected after page transition
+      isTransitioning: true // Flag to indicate room is in transition phase
     };
 
     this.rooms.set(roomId, room);
@@ -400,40 +402,50 @@ class FightGame {
 
     // Find room with this player
     for (const [roomId, room] of this.rooms) {
-      const oldSocketIds = Object.keys(room.fighters);
+      const currentSocketIds = Object.keys(room.fighters);
       
-      if (oldSocketIds.includes(socketId)) {
+      if (currentSocketIds.includes(socketId)) {
         console.log(`⚠️ Player ${socketId} disconnected from room ${roomId}`);
         
-        // Mark the disconnect time
-        if (!room.disconnectTimers) {
-          room.disconnectTimers = {};
-        }
-        
-        room.disconnectTimers[socketId] = Date.now();
-        
-        // Give players 10 seconds to reconnect (for page transitions)
-        setTimeout(() => {
-          const currentRoom = this.rooms.get(roomId);
-          if (!currentRoom) return; // Room already deleted
+        // Check if room is in transition phase (players reconnecting after page transition)
+        if (room.isTransitioning) {
+          // Players are still reconnecting, give them time
+          console.log(`🔄 Player disconnected during transition phase, waiting for reconnection...`);
           
-          // Check if this socket reconnected (ID changed)
-          const currentSocketIds = Object.keys(currentRoom.fighters);
-          const stillDisconnected = !currentSocketIds.includes(socketId);
-          
-          if (stillDisconnected) {
-            console.log(`❌ Player ${socketId} failed to reconnect to ${roomId}, closing room`);
-            
-            // Notify other player
-            if (this.io) {
-              this.io.to(roomId).emit('opponentDisconnected');
-            }
+          // Set a timeout ID so we can track this
+          if (!room.disconnectTimeout) {
+            room.disconnectTimeout = setTimeout(() => {
+              const currentRoom = this.rooms.get(roomId);
+              if (!currentRoom) return; // Room already deleted
+              
+              // Check if transition is complete (both players reconnected)
+              if (currentRoom.isTransitioning) {
+                console.log(`❌ Not all players reconnected to ${roomId} in time, closing room`);
+                
+                // Notify other player
+                if (this.io) {
+                  this.io.to(roomId).emit('opponentDisconnected');
+                }
 
-            // Remove room
-            this.rooms.delete(roomId);
-            console.log(`Room ${roomId} closed due to disconnect timeout`);
+                // Remove room
+                this.rooms.delete(roomId);
+                console.log(`Room ${roomId} closed due to transition timeout`);
+              }
+            }, 15000); // 15 second grace period for transition
           }
-        }, 10000); // 10 second grace period
+        } else {
+          // Normal disconnect during game - close room immediately
+          console.log(`❌ Player ${socketId} disconnected during game, closing room ${roomId}`);
+          
+          // Notify other player
+          if (this.io) {
+            this.io.to(roomId).emit('opponentDisconnected');
+          }
+
+          // Remove room
+          this.rooms.delete(roomId);
+          console.log(`Room ${roomId} closed`);
+        }
         
         break;
       }
@@ -534,6 +546,19 @@ class FightGame {
 
     // Mark this fighter as reconnected
     room.reconnectedFighters.add(oldFighterId);
+
+    // Check if both players have reconnected
+    if (room.reconnectedFighters.size === 2) {
+      room.isTransitioning = false;
+      
+      // Clear the disconnect timeout if it exists
+      if (room.disconnectTimeout) {
+        clearTimeout(room.disconnectTimeout);
+        room.disconnectTimeout = null;
+      }
+      
+      console.log(`✅ Both players reconnected to ${roomId}, game ready!`);
+    }
 
     // Join the socket to the room
     if (this.io) {
