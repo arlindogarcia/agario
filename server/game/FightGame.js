@@ -98,7 +98,7 @@ class FightGame {
       roundTimer: 3000, // Countdown from 3
       roundStartTime: Date.now(),
       winner: null,
-      reconnectedFighters: new Set(), // Track which fighters have reconnected after page transition
+      reconnectedPositions: new Set(), // Track which positions (0, 1) have reconnected after page transition
       isTransitioning: true // Flag to indicate room is in transition phase
     };
 
@@ -222,9 +222,16 @@ class FightGame {
       };
 
       // Log once per second
-      if (!room.lastLogTime || Date.now() - room.lastLogTime > 1000) {
+      if (!room.lastLogTime || Date.now() - room.lastLogTime > 3000) {
         console.log(`📡 Sending gameUpdate to room ${roomId}:`, {
           fighterCount: gameState.fighters.length,
+          fighters: gameState.fighters.map(f => ({
+            id: f.id.substring(0, 8),
+            name: f.name,
+            pos: f.position,
+            x: Math.round(f.x),
+            velocityX: f.velocityX
+          })),
           round: gameState.currentRound,
           state: room.roundState
         });
@@ -387,10 +394,47 @@ class FightGame {
   // Handle player input
   updatePlayerInput(socketId, input) {
     // Find which room this player is in
+    let foundFighter = false;
+    
     for (const [roomId, room] of this.rooms) {
       if (room.fighters[socketId]) {
-        room.fighters[socketId].setInput(input);
+        const fighter = room.fighters[socketId];
+        
+        // Log input updates (throttled)
+        if (!fighter.lastInputLog || Date.now() - fighter.lastInputLog > 2000) {
+          console.log(`🎮 Input from ${socketId.substring(0, 8)} (${fighter.name}, pos ${fighter.position}):`, {
+            left: input.left,
+            right: input.right,
+            punch: input.punch,
+            kick: input.kick
+          });
+          fighter.lastInputLog = Date.now();
+        }
+        
+        fighter.setInput(input);
+        foundFighter = true;
         break;
+      }
+    }
+    
+    // Log if fighter not found
+    if (!foundFighter) {
+      if (!this.loggedMissingFighters) this.loggedMissingFighters = new Set();
+      if (!this.loggedMissingFighters.has(socketId)) {
+        console.error(`❌ Fighter not found for socket ${socketId.substring(0, 8)}`);
+        
+        // Show all rooms and fighters
+        for (const [roomId, room] of this.rooms) {
+          console.log(`   Room ${roomId} has fighters:`, 
+            Object.values(room.fighters).map(f => ({
+              id: f.id.substring(0, 8),
+              name: f.name,
+              pos: f.position
+            }))
+          );
+        }
+        
+        this.loggedMissingFighters.add(socketId);
       }
     }
   }
@@ -477,65 +521,78 @@ class FightGame {
   }
 
   // Handle player joining the game (reconnecting with new socket ID)
-  joinGame(newSocketId, roomId) {
+  joinGame(newSocketId, roomId, oldPlayerId = null) {
     const room = this.rooms.get(roomId);
     if (!room) {
       console.error(`❌ Room ${roomId} not found for joinGame`);
       return { success: false, error: 'Room not found' };
     }
 
-    console.log(`🎮 Player ${newSocketId} joining room ${roomId}`);
-
-    // Track which fighters have reconnected
-    if (!room.reconnectedFighters) {
-      room.reconnectedFighters = new Set();
+    console.log(`🎮 Player ${newSocketId.substring(0, 8)}... joining room ${roomId}`);
+    if (oldPlayerId) {
+      console.log(`   Client says they were: ${oldPlayerId.substring(0, 8)}...`);
     }
 
-    // Find which fighter slot is available or needs updating
-    const fighters = Object.values(room.fighters);
-    const oldSocketIds = Object.keys(room.fighters);
+    // Track which POSITIONS have reconnected (not IDs, since IDs change!)
+    if (!room.reconnectedPositions) {
+      room.reconnectedPositions = new Set();
+    }
 
-    console.log(`📋 Existing fighter IDs: ${oldSocketIds.join(', ')}`);
-    console.log(`📋 Reconnected fighters: ${Array.from(room.reconnectedFighters).join(', ')}`);
+    // Get all fighters sorted by position to maintain order
+    const fighters = Object.values(room.fighters).sort((a, b) => a.position - b.position);
+    
+    console.log(`📋 Existing fighters:`, fighters.map(f => ({ id: f.id.substring(0, 8), position: f.position, name: f.name })));
+    console.log(`📋 Reconnected positions: ${Array.from(room.reconnectedPositions).join(', ')}`);
 
     // Check if this socket is already in the room
     if (room.fighters[newSocketId]) {
-      console.log(`✅ Socket ${newSocketId} already in room`);
-      const fighterIndex = fighters.findIndex(f => f.id === newSocketId);
+      const myFighter = room.fighters[newSocketId];
+      console.log(`✅ Socket ${newSocketId.substring(0, 8)}... already in room as position ${myFighter.position}`);
       return { 
         success: true, 
-        playerNumber: fighterIndex + 1,
+        playerNumber: myFighter.position + 1,
         roomId 
       };
     }
 
-    // Find the first fighter that hasn't reconnected yet
-    let playerNumber = null;
+    // Find the fighter to update
+    let targetFighter = null;
     let oldFighterId = null;
 
-    for (let i = 0; i < oldSocketIds.length; i++) {
-      const oldId = oldSocketIds[i];
-      if (!room.reconnectedFighters.has(oldId)) {
-        // This fighter hasn't reconnected yet
-        oldFighterId = oldId;
-        playerNumber = i + 1;
-        break;
+    // If client provided their old ID, try to find that specific fighter
+    if (oldPlayerId && room.fighters[oldPlayerId]) {
+      targetFighter = room.fighters[oldPlayerId];
+      oldFighterId = oldPlayerId;
+      console.log(`✅ Found fighter by OLD ID: ${targetFighter.name} (pos ${targetFighter.position})`);
+    } else {
+      // Fallback: find the first fighter BY POSITION that hasn't reconnected yet
+      for (const fighter of fighters) {
+        if (!room.reconnectedPositions.has(fighter.position)) {
+          // This position hasn't reconnected yet
+          targetFighter = fighter;
+          oldFighterId = fighter.id;
+          console.log(`⚠️ Using fallback - found unreconnected position: ${targetFighter.position}`);
+          break;
+        }
       }
     }
 
-    if (!oldFighterId) {
-      console.error(`❌ All fighter slots already taken`);
+    if (!targetFighter) {
+      console.error(`❌ All fighter positions already reconnected`);
       return { success: false, error: 'All fighter slots already taken' };
     }
 
-    console.log(`🔄 Updating fighter ${oldFighterId} to ${newSocketId} (Player ${playerNumber})`);
+    const playerNumber = targetFighter.position + 1; // position is 0 or 1, playerNumber is 1 or 2
+
+    console.log(`🔄 Updating fighter position ${targetFighter.position} (${targetFighter.name}):`);
+    console.log(`   OLD ID: ${oldFighterId.substring(0, 8)}...`);
+    console.log(`   NEW ID: ${newSocketId.substring(0, 8)}...`);
 
     // Update the fighter's ID
-    const oldFighter = room.fighters[oldFighterId];
-    oldFighter.id = newSocketId;
+    targetFighter.id = newSocketId;
     
-    // Move fighter to new key
-    room.fighters[newSocketId] = oldFighter;
+    // Move fighter to new key in the fighters object
+    room.fighters[newSocketId] = targetFighter;
     delete room.fighters[oldFighterId];
     
     // Update roundsWon mapping
@@ -544,11 +601,31 @@ class FightGame {
       delete room.roundsWon[oldFighterId];
     }
 
-    // Mark this fighter as reconnected
-    room.reconnectedFighters.add(oldFighterId);
+    // Mark this POSITION as reconnected
+    room.reconnectedPositions.add(targetFighter.position);
 
-    // Check if both players have reconnected
-    if (room.reconnectedFighters.size === 2) {
+    // Log the updated state
+    console.log(`✅ Fighter ${targetFighter.name} (pos ${targetFighter.position}) updated successfully!`);
+    console.log(`   Fighter ID is now: ${targetFighter.id.substring(0, 8)}...`);
+    console.log(`   Stored in room.fighters["${newSocketId.substring(0, 8)}..."]`);
+    
+    console.log(`\n📋 ROOM STATE AFTER UPDATE:`);
+    console.log(`   All fighters in room:`, Object.values(room.fighters).map(f => ({
+      name: f.name,
+      id: f.id.substring(0, 8),
+      position: f.position
+    })));
+    
+    // Verify the fighter is accessible
+    const verify = room.fighters[newSocketId];
+    if (verify) {
+      console.log(`✅ VERIFIED: Fighter "${verify.name}" can be found by new socket ID ${newSocketId.substring(0, 8)}...`);
+    } else {
+      console.error(`❌ ERROR: Fighter NOT found by new socket ID!`);
+    }
+
+    // Check if both players have reconnected (both positions 0 and 1)
+    if (room.reconnectedPositions.size === 2) {
       room.isTransitioning = false;
       
       // Clear the disconnect timeout if it exists
@@ -558,6 +635,8 @@ class FightGame {
       }
       
       console.log(`✅ Both players reconnected to ${roomId}, game ready!`);
+      console.log(`   Player 1 (pos 0): ${Object.values(room.fighters).find(f => f.position === 0)?.name}`);
+      console.log(`   Player 2 (pos 1): ${Object.values(room.fighters).find(f => f.position === 1)?.name}`);
     }
 
     // Join the socket to the room
@@ -565,7 +644,7 @@ class FightGame {
       const socket = this.io.sockets.sockets.get(newSocketId);
       if (socket) {
         socket.join(roomId);
-        console.log(`✅ Socket ${newSocketId} joined room ${roomId} as Player ${playerNumber}`);
+        console.log(`✅ Socket ${newSocketId} joined room ${roomId} as Player ${playerNumber} (position ${targetFighter.position})`);
       }
     }
 

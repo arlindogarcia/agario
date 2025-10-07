@@ -87,29 +87,42 @@ class Fighter {
 
   handleMovement() {
     const moveSpeed = 5;
+    const attackMoveSpeed = 3; // Slower movement during attacks
 
-    // Horizontal movement
-    if (this.input.left && !this.isAttacking) {
-      this.velocityX = -moveSpeed;
+    // Horizontal movement - allowed during attacks but slower
+    // Client handles priority, so only one direction will be true at a time
+    if (this.input.left) {
+      this.velocityX = this.isAttacking ? -attackMoveSpeed : -moveSpeed;
       this.facingRight = false;
-      this.currentAction = 'walk';
-    } else if (this.input.right && !this.isAttacking) {
-      this.velocityX = moveSpeed;
+      if (!this.isAttacking) {
+        this.currentAction = 'walk';
+      }
+    } else if (this.input.right) {
+      this.velocityX = this.isAttacking ? attackMoveSpeed : moveSpeed;
       this.facingRight = true;
-      this.currentAction = 'walk';
-    } else if (!this.isAttacking) {
-      this.velocityX = 0;
-      this.currentAction = 'idle';
+      if (!this.isAttacking) {
+        this.currentAction = 'walk';
+      }
+    } else {
+      // No movement
+      if (!this.isAttacking) {
+        this.velocityX = 0;
+        this.currentAction = 'idle';
+      } else {
+        this.velocityX = 0;
+      }
     }
 
-    // Jump
-    if (this.input.up && this.isGrounded && !this.isAttacking) {
+    // Jump - allowed during attacks
+    if (this.input.up && this.isGrounded) {
       this.velocityY = -15;
       this.isGrounded = false;
-      this.currentAction = 'jump';
+      if (!this.isAttacking) {
+        this.currentAction = 'jump';
+      }
     }
 
-    // Block
+    // Block - cannot block while attacking
     if (this.input.down && this.isGrounded && !this.isAttacking) {
       this.isBlocking = true;
       this.currentAction = 'block';
@@ -170,7 +183,7 @@ class Fighter {
     this.currentAttack = properties;
     this.actionFrame = 0;
     this.actionTimer = 0;
-    this.velocityX = 0; // Stop moving during attack
+    // Don't stop moving - allow movement during attack
 
     // Hitbox becomes active partway through the animation
     setTimeout(() => {
@@ -183,7 +196,9 @@ class Fighter {
       this.hitboxActive = false;
       this.attackCooldown = properties.cooldown;
       this.currentAttack = null;
-      this.currentAction = 'idle';
+      if (!this.input.left && !this.input.right) {
+        this.currentAction = 'idle';
+      }
     }, properties.duration);
   }
 

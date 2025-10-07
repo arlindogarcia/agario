@@ -188,7 +188,7 @@ io.on('connection', (socket) => {
   // Join game (reconnect with new socket ID)
   socket.on('fight:joinGame', (data) => {
     console.log(`🎮 [FIGHT] Player joining game:`, data);
-    const result = fightGame.joinGame(socket.id, data.roomId);
+    const result = fightGame.joinGame(socket.id, data.roomId, data.oldPlayerId);
     
     if (result.success) {
       socket.emit('gameJoined', result);

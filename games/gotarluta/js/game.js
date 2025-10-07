@@ -41,12 +41,18 @@ const player1Name = document.getElementById('player1Name');
 const player1Health = document.getElementById('player1Health');
 const player1HP = document.getElementById('player1HP');
 const player1Rounds = document.getElementById('player1Rounds');
+const player1Combo = document.getElementById('player1Combo');
+const player1ComboText = document.getElementById('player1ComboText');
+const player1ComboContainer = document.querySelector('.player-left .combo-bar-container');
 
 const player2Avatar = document.getElementById('player2Avatar');
 const player2Name = document.getElementById('player2Name');
 const player2Health = document.getElementById('player2Health');
 const player2HP = document.getElementById('player2HP');
 const player2Rounds = document.getElementById('player2Rounds');
+const player2Combo = document.getElementById('player2Combo');
+const player2ComboText = document.getElementById('player2ComboText');
+const player2ComboContainer = document.querySelector('.player-right .combo-bar-container');
 
 const roundInfo = document.getElementById('roundInfo');
 const countdown = document.getElementById('countdown');
@@ -77,6 +83,8 @@ const input = {
   block: false,
   special: false
 };
+let lastInputTime = 0;
+let lastHorizontalKey = null; // Track which horizontal key was pressed last
 
 // Particle effects
 const particles = [];
@@ -85,32 +93,79 @@ const particles = [];
 
 // Input handling
 window.addEventListener('keydown', (e) => {
+  // Track which horizontal key was pressed last
+  if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    if (!keys[e.code]) { // Only update if this key wasn't already pressed
+      lastHorizontalKey = e.code;
+    }
+  }
+  
   keys[e.code] = true;
   updateInput();
 });
 
 window.addEventListener('keyup', (e) => {
   keys[e.code] = false;
+  
+  // If the last horizontal key was released, check if the opposite is still pressed
+  if (e.code === lastHorizontalKey) {
+    if (e.code === 'ArrowLeft' && keys['ArrowRight']) {
+      lastHorizontalKey = 'ArrowRight';
+    } else if (e.code === 'ArrowRight' && keys['ArrowLeft']) {
+      lastHorizontalKey = 'ArrowLeft';
+    } else {
+      lastHorizontalKey = null;
+    }
+  }
+  
   updateInput();
 });
 
 function updateInput() {
-  const newInput = {
-    left: keys['ArrowLeft'] || false,
-    right: keys['ArrowRight'] || false,
-    up: keys['ArrowUp'] || false,
-    down: keys['ArrowDown'] || false,
-    punch: keys['KeyA'] || false,
-    kick: keys['KeyS'] || false,
-    block: keys['ArrowDown'] || false,
-    special: keys['Space'] || false
-  };
-
-  // Only send if input changed
-  if (JSON.stringify(newInput) !== JSON.stringify(input)) {
-    Object.assign(input, newInput);
-    socket.emit('fight:input', input);
+  // Throttle input to 60 FPS (16ms) to avoid spam
+  const now = Date.now();
+  if (now - lastInputTime < 16) return;
+  lastInputTime = now;
+  
+  // Handle horizontal movement with priority to last pressed key
+  if (keys['ArrowLeft'] && keys['ArrowRight']) {
+    // Both keys pressed - use the last one pressed
+    input.left = lastHorizontalKey === 'ArrowLeft';
+    input.right = lastHorizontalKey === 'ArrowRight';
+  } else {
+    // Normal case - only one or neither key pressed
+    input.left = keys['ArrowLeft'] || false;
+    input.right = keys['ArrowRight'] || false;
   }
+  
+  // Other inputs
+  input.up = keys['ArrowUp'] || false;
+  input.down = keys['ArrowDown'] || false;
+  input.punch = keys['KeyA'] || false;
+  input.kick = keys['KeyS'] || false;
+  input.block = keys['ArrowDown'] || false;
+  input.special = keys['Space'] || false;
+  
+  // Log input when any key is pressed (throttled)
+  if (!window.lastInputDebug || now - window.lastInputDebug > 2000) {
+    const hasInput = Object.values(input).some(v => v === true);
+    if (hasInput) {
+      console.log('🎮 ========== SENDING INPUT ==========');
+      console.log('My socket ID:', socket.id.substring(0, 8) + '...');
+      if (myFighter) {
+        console.log('I am controlling:', myFighter.name, '(pos', myFighter.position + ')');
+        console.log('My position:', Math.round(myFighter.x));
+      } else {
+        console.log('⚠️ myFighter not yet loaded');
+      }
+      console.log('Input:', input);
+      console.log('=====================================');
+      window.lastInputDebug = now;
+    }
+  }
+  
+  // Send input to server
+  socket.emit('fight:input', input);
 }
 
 // Socket.IO event handlers
@@ -119,40 +174,95 @@ socket.on('connect', () => {
   console.log('✅ Connected to fight server, socket.id:', socket.id);
   myPlayerId = socket.id;
   
-  // Inform server about joining the fight game with room data
+  // Figure out which player I was in the lobby by comparing with localStorage
+  const player1Data = matchData.players.player1;
+  const player2Data = matchData.players.player2;
+  
+  // Find my old player data by checking localStorage for my player info
+  // We need to send the OLD socket ID so server knows which fighter to update
+  let myOldSocketId = null;
+  
+  // Try to determine from localStorage which player we are
+  const storedPlayerName = localStorage.getItem('playerName');
+  const storedPlayerAvatar = localStorage.getItem('playerAvatar');
+  
+  console.log('🔍 Identifying myself:');
+  console.log('  Stored name:', storedPlayerName);
+  console.log('  Stored avatar:', storedPlayerAvatar);
+  console.log('  Player 1:', player1Data.name, player1Data.avatar);
+  console.log('  Player 2:', player2Data.name, player2Data.avatar);
+  
+  // Match by name and avatar
+  if (player1Data.name === storedPlayerName && player1Data.avatar === storedPlayerAvatar) {
+    myOldSocketId = player1Data.id;
+    console.log('→ I am Player 1 (OLD ID:', player1Data.id.substring(0, 8) + ')');
+  } else if (player2Data.name === storedPlayerName && player2Data.avatar === storedPlayerAvatar) {
+    myOldSocketId = player2Data.id;
+    console.log('→ I am Player 2 (OLD ID:', player2Data.id.substring(0, 8) + ')');
+  } else {
+    console.error('❌ Cannot identify which player I am!');
+  }
+  
+  // Inform server about joining the fight game with OLD ID
   socket.emit('fight:joinGame', {
     roomId: matchData.roomId,
-    oldPlayerId: null // Will be determined by server based on available spot
+    oldPlayerId: myOldSocketId
   });
+  
+  console.log('📤 Sent joinGame with oldPlayerId:', myOldSocketId ? myOldSocketId.substring(0, 8) + '...' : 'null');
 });
 
 socket.on('gameJoined', (data) => {
-  console.log('✅ Game joined successfully:', data);
+  console.log('==========================================');
+  console.log('✅ GAME JOINED - Server says I am Player', data.playerNumber);
+  console.log('   My socket ID:', socket.id);
+  console.log('   Room ID:', data.roomId);
+  console.log('==========================================');
   
   // Update myPlayerId to match server's assignment
   myPlayerId = socket.id;
   
-  // Determine opponent ID from match data
-  const player1 = matchData.players.player1;
-  const player2 = matchData.players.player2;
+  // Determine MY data and opponent data from match data
+  const player1Data = matchData.players.player1;
+  const player2Data = matchData.players.player2;
+  
+  console.log('📋 Original match data (OLD IDs from lobby):');
+  console.log('  Player 1:', player1Data.name, '(OLD ID:', player1Data.id.substring(0, 8) + '...)');
+  console.log('  Player 2:', player2Data.name, '(OLD ID:', player2Data.id.substring(0, 8) + '...)');
+  console.log('📋 My NEW socket ID:', socket.id.substring(0, 8) + '...');
+  
+  let myData, oppData;
   
   if (data.playerNumber === 1) {
-    opponentId = player2.id;
-    console.log('✅ I am Player 1');
-    player1Avatar.src = player1.avatar;
-    player1Name.textContent = player1.name;
-    player2Avatar.src = player2.avatar;
-    player2Name.textContent = player2.name;
+    // I am Player 1 (position 0) - started as player1 in lobby
+    myData = player1Data;
+    oppData = player2Data;
+    console.log('→ I am Player 1 (position 0, LEFT side on HUD)');
+    console.log('→ My name:', myData.name);
+    console.log('→ Opponent name:', oppData.name);
   } else {
-    opponentId = player1.id;
-    console.log('✅ I am Player 2');
-    player1Avatar.src = player2.avatar;
-    player1Name.textContent = player2.name;
-    player2Avatar.src = player1.avatar;
-    player2Name.textContent = player1.name;
+    // I am Player 2 (position 1) - started as player2 in lobby
+    myData = player2Data;
+    oppData = player1Data;
+    console.log('→ I am Player 2 (position 1, still LEFT side on MY HUD)');
+    console.log('→ My name:', myData.name);
+    console.log('→ Opponent name:', oppData.name);
   }
   
-  console.log('✅ HUD initialized');
+  // ALWAYS: Left side of HUD = ME, Right side = OPPONENT (regardless of position)
+  player1Avatar.src = myData.avatar;
+  player1Name.textContent = myData.name;
+  player2Avatar.src = oppData.avatar;
+  player2Name.textContent = oppData.name;
+  
+  console.log('🎨 HUD Setup:');
+  console.log('  LEFT (ME):', myData.name);
+  console.log('  RIGHT (OPP):', oppData.name);
+  
+  console.log('HUD will show:');
+  console.log('  LEFT:', myData.name, '← ME');
+  console.log('  RIGHT:', oppData.name, '← OPPONENT');
+  console.log('==========================================');
 });
 
 socket.on('countdown', (data) => {
@@ -179,28 +289,59 @@ socket.on('gameUpdate', (data) => {
   currentRound = data.currentRound;
   roundsWon = data.roundsWon;
 
-  if (!myFighter) {
-    console.log('🎮 First game update received:', data);
-  }
-
-  // Update HUD
-  updateHUD();
-
-  // Find my fighter and opponent
+  // Find my fighter and opponent - CRITICAL: Based on socket.id
   myFighter = fighters.find(f => f.id === socket.id);
   opponentFighter = fighters.find(f => f.id !== socket.id);
 
-  if (myFighter && opponentFighter && fighters.length > 0) {
-    // Log once when both fighters are found
-    if (!window.fightersLogged) {
-      console.log('👥 Fighters found:', {
-        myFighter: myFighter.name,
-        opponentFighter: opponentFighter.name,
-        totalFighters: fighters.length
+  // Log on first update to verify correct identification
+  if (!window.fightersLogged && myFighter && opponentFighter) {
+    console.log('👥 ========== FIGHTERS IDENTIFIED IN GAMEUPDATE ==========');
+    console.log('My CURRENT Socket ID:', socket.id.substring(0, 8) + '...');
+    console.log('Received fighters from server:');
+    fighters.forEach(f => {
+      console.log(`  - Fighter: ${f.name}, ID: ${f.id.substring(0, 8)}..., Position: ${f.position}, X: ${Math.round(f.x)}`);
+    });
+    
+    console.log('\n🎯 MY FIGHTER (the one I should control):');
+    console.log('  Socket ID matches:', myFighter.id.substring(0, 8) + '...');
+    console.log('  Name:', myFighter.name);
+    console.log('  Position:', myFighter.position);
+    console.log('  X coordinate:', Math.round(myFighter.x));
+    
+    console.log('\n🎯 OPPONENT FIGHTER:');
+    console.log('  Socket ID:', opponentFighter.id.substring(0, 8) + '...');
+    console.log('  Name:', opponentFighter.name);
+    console.log('  Position:', opponentFighter.position);
+    console.log('  X coordinate:', Math.round(opponentFighter.x));
+    
+    console.log('\n📋 COMPARISON WITH LOCALSTORAGE:');
+    console.log('  My stored name:', localStorage.getItem('playerName'));
+    console.log('  Does MY FIGHTER name match?', myFighter.name === localStorage.getItem('playerName'));
+    console.log('==========================================');
+    window.fightersLogged = true;
+  }
+
+  // Sanity check: Verify myFighter is actually mine
+  if (myFighter && myFighter.id !== socket.id) {
+    console.error('❌ ERROR: myFighter has wrong ID!', {
+      expected: socket.id.substring(0, 8),
+      got: myFighter.id.substring(0, 8)
+    });
+  }
+  
+  // Log if can't find my fighter
+  if (!myFighter) {
+    if (!window.missingFighterLogged) {
+      console.error('❌ ERROR: Cannot find MY fighter!', {
+        mySocketId: socket.id.substring(0, 8),
+        availableFighters: fighters.map(f => f.id.substring(0, 8))
       });
-      window.fightersLogged = true;
+      window.missingFighterLogged = true;
     }
   }
+
+  // Update HUD with correct fighter data
+  updateHUD();
 });
 
 socket.on('hit', (data) => {
@@ -258,22 +399,70 @@ socket.on('opponentDisconnected', () => {
   window.location.href = 'index.html';
 });
 
-// Update HUD
+// Update HUD - ALWAYS: Left = ME, Right = OPPONENT
 function updateHUD() {
   if (!myFighter || !opponentFighter) return;
 
-  // Health bars
-  const myHealthPercent = (myFighter.health / myFighter.maxHealth) * 100;
-  const oppHealthPercent = (opponentFighter.health / opponentFighter.maxHealth) * 100;
+  // Debug log once per second to verify correct data
+  if (!window.lastHudLog || Date.now() - window.lastHudLog > 2000) {
+    console.log('🎨 HUD Update:', {
+      'LEFT (ME)': {
+        name: myFighter.name,
+        health: Math.round(myFighter.health),
+        combo: Math.round(myFighter.comboMeter || 0),
+        socketId: myFighter.id
+      },
+      'RIGHT (OPP)': {
+        name: opponentFighter.name,
+        health: Math.round(opponentFighter.health),
+        combo: Math.round(opponentFighter.comboMeter || 0),
+        socketId: opponentFighter.id
+      },
+      'My Socket': socket.id
+    });
+    window.lastHudLog = Date.now();
+  }
 
+  // LEFT SIDE = MY FIGHTER (ALWAYS)
+  const myHealthPercent = (myFighter.health / myFighter.maxHealth) * 100;
   player1Health.style.width = `${myHealthPercent}%`;
   player1HP.textContent = `${Math.round(myFighter.health)} HP`;
 
+  const myComboMeter = myFighter.comboMeter !== undefined ? myFighter.comboMeter : 0;
+  const myMaxCombo = myFighter.maxComboMeter !== undefined ? myFighter.maxComboMeter : 100;
+  const myComboPercent = (myComboMeter / myMaxCombo) * 100;
+  
+  player1Combo.style.width = `${myComboPercent}%`;
+  player1ComboText.textContent = `Especial: ${Math.round(myComboPercent)}%`;
+  
+  if (myComboPercent >= 100) {
+    player1ComboContainer.classList.add('ready');
+    player1ComboText.textContent = 'ESPECIAL PRONTO!';
+  } else {
+    player1ComboContainer.classList.remove('ready');
+  }
+
+  player1Rounds.textContent = roundsWon[socket.id] || 0;
+
+  // RIGHT SIDE = OPPONENT FIGHTER (ALWAYS)
+  const oppHealthPercent = (opponentFighter.health / opponentFighter.maxHealth) * 100;
   player2Health.style.width = `${oppHealthPercent}%`;
   player2HP.textContent = `${Math.round(opponentFighter.health)} HP`;
 
-  // Rounds won
-  player1Rounds.textContent = roundsWon[socket.id] || 0;
+  const oppComboMeter = opponentFighter.comboMeter !== undefined ? opponentFighter.comboMeter : 0;
+  const oppMaxCombo = opponentFighter.maxComboMeter !== undefined ? opponentFighter.maxComboMeter : 100;
+  const oppComboPercent = (oppComboMeter / oppMaxCombo) * 100;
+  
+  player2Combo.style.width = `${oppComboPercent}%`;
+  player2ComboText.textContent = `Especial: ${Math.round(oppComboPercent)}%`;
+  
+  if (oppComboPercent >= 100) {
+    player2ComboContainer.classList.add('ready');
+    player2ComboText.textContent = 'ESPECIAL PRONTO!';
+  } else {
+    player2ComboContainer.classList.remove('ready');
+  }
+
   player2Rounds.textContent = roundsWon[opponentId] || 0;
 }
 
@@ -361,7 +550,8 @@ function drawFighter(fighter) {
   } else {
     // Fallback: draw a simple stickman
     ctx.save();
-    ctx.strokeStyle = fighter.id === socket.id ? '#00ff00' : '#ff0000';
+    const isMe = fighter.id === socket.id;
+    ctx.strokeStyle = isMe ? '#00ff00' : '#ff0000';
     ctx.lineWidth = 4;
     ctx.lineCap = 'round';
 
