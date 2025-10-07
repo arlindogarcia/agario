@@ -5,7 +5,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "update-versions": "node update-versions.js"
   },
   "keywords": ["game", "multiplayer", "socket.io"],
   "author": "",
