@@ -193,15 +193,33 @@ socket.on('connect', () => {
   console.log('  Player 1:', player1Data.name, player1Data.avatar);
   console.log('  Player 2:', player2Data.name, player2Data.avatar);
   
-  // Match by name and avatar
-  if (player1Data.name === storedPlayerName && player1Data.avatar === storedPlayerAvatar) {
+  // Match by name and avatar (more flexible matching)
+  const nameMatch1 = player1Data.name === storedPlayerName;
+  const avatarMatch1 = player1Data.avatar === storedPlayerAvatar;
+  const nameMatch2 = player2Data.name === storedPlayerName;
+  const avatarMatch2 = player2Data.avatar === storedPlayerAvatar;
+  
+  console.log('  Name match P1:', nameMatch1, 'Avatar match P1:', avatarMatch1);
+  console.log('  Name match P2:', nameMatch2, 'Avatar match P2:', avatarMatch2);
+  
+  // Prioritize exact matches, but allow partial matches
+  if (nameMatch1 && avatarMatch1) {
     myOldSocketId = player1Data.id;
-    console.log('→ I am Player 1 (OLD ID:', player1Data.id.substring(0, 8) + ')');
-  } else if (player2Data.name === storedPlayerName && player2Data.avatar === storedPlayerAvatar) {
+    console.log('→ I am Player 1 (exact match - OLD ID:', player1Data.id.substring(0, 8) + ')');
+  } else if (nameMatch2 && avatarMatch2) {
     myOldSocketId = player2Data.id;
-    console.log('→ I am Player 2 (OLD ID:', player2Data.id.substring(0, 8) + ')');
+    console.log('→ I am Player 2 (exact match - OLD ID:', player2Data.id.substring(0, 8) + ')');
+  } else if (nameMatch1) {
+    myOldSocketId = player1Data.id;
+    console.log('→ I am Player 1 (name match only - OLD ID:', player1Data.id.substring(0, 8) + ')');
+  } else if (nameMatch2) {
+    myOldSocketId = player2Data.id;
+    console.log('→ I am Player 2 (name match only - OLD ID:', player2Data.id.substring(0, 8) + ')');
   } else {
     console.error('❌ Cannot identify which player I am!');
+    console.log('  Trying fallback: using first available player...');
+    // Fallback: use first player if we can't identify
+    myOldSocketId = player1Data.id;
   }
   
   // Inform server about joining the fight game with OLD ID
