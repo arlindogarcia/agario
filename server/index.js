@@ -206,6 +206,6 @@ setInterval(() => {
 
 // Iniciar servidor
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎮 Servidor Agar.io rodando em http://0.0.0.0:${PORT}`);
+  console.log(`🎮 Servidor rodando em http://0.0.0.0:${PORT}`);
   console.log(`📡 Acesse pelo seu IP público na porta ${PORT}`);
 });

@@ -1,13 +1,13 @@
 {
   "name": "agario-clone",
   "version": "1.0.0",
-  "description": "Multiplayer Agar.io clone game",
+  "description": "Multiplayer clone game",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js"
   },
-  "keywords": ["game", "agar.io", "multiplayer", "socket.io"],
+  "keywords": ["game", "multiplayer", "socket.io"],
   "author": "",
   "license": "MIT",
   "dependencies": {
