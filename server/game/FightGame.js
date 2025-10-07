@@ -635,8 +635,6 @@ class FightGame {
       }
       
       console.log(`✅ Both players reconnected to ${roomId}, game ready!`);
-      console.log(`   Player 1 (pos 0): ${Object.values(room.fighters).find(f => f.position === 0)?.name}`);
-      console.log(`   Player 2 (pos 1): ${Object.values(room.fighters).find(f => f.position === 1)?.name}`);
     }
 
     // Join the socket to the room
