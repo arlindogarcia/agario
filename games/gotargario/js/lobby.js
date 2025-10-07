@@ -110,7 +110,7 @@ joinForm.addEventListener('submit', (e) => {
   }));
 
   // Redirecionar para o jogo
-  window.location.href = '/game.html';
+  window.location.href = 'game.html';
 });
 
 // ============= GALERIA DE AVATARES =============
@@ -118,7 +118,7 @@ joinForm.addEventListener('submit', (e) => {
 // Carregar avatares pré-definidos
 async function loadAvatars() {
   try {
-    const response = await fetch('/avatars/avatars.json');
+    const response = await fetch('avatars/avatars.json');
     availableAvatars = await response.json();
     renderAvatarGallery();
   } catch (error) {
@@ -142,7 +142,7 @@ function renderAvatarGallery() {
     avatarOption.dataset.avatarId = avatar.id;
 
     const img = document.createElement('img');
-    img.src = `/avatars/${avatar.file}`;
+    img.src = `avatars/${avatar.file}`;
     img.alt = avatar.name;
 
     const nameLabel = document.createElement('div');
@@ -176,7 +176,7 @@ function selectPresetAvatar(avatar) {
   removeAvatar();
 
   // Salvar seleção
-  selectedPresetAvatar = `/avatars/${avatar.file}`;
+  selectedPresetAvatar = `avatars/${avatar.file}`;
 }
 
 // ============= MODIFICAR FUNÇÕES EXISTENTES =============

@@ -1,8 +1,12 @@
-# 🎮 Agar.io Clone - Multiplayer Game
+# 🎮 Gotar Games - Portal de Jogos
 
-Jogo multiplayer em tempo real inspirado no Agar.io, desenvolvido com Node.js, Socket.io e HTML5 Canvas.
+Portal de jogos multiplayer e casual desenvolvido com Node.js, Socket.io e HTML5 Canvas.
 
-## 🚀 Características
+Atualmente contém:
+- **Gotargario**: Clone do Agar.io com multiplayer em tempo real
+- **Gotardino**: Jogo do dinossauro (em breve)
+
+## 🚀 Características do Gotargario
 
 - ✅ Multiplayer em tempo real
 - ✅ Upload de avatar personalizado
@@ -26,7 +30,22 @@ Jogo multiplayer em tempo real inspirado no Agar.io, desenvolvido com Node.js, S
 2. Estrutura do projeto:
 
 ```
-agario/
+gotar-games/
+├── index.html               # Portal principal com lista de jogos
+├── games/
+│   ├── gotargario/          # Jogo Gotargario (Agar.io clone)
+│   │   ├── index.html       # Tela de entrada
+│   │   ├── game.html        # Tela do jogo
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   ├── js/
+│   │   │   ├── lobby.js
+│   │   │   └── game.js
+│   │   ├── avatars/
+│   │   ├── backgrounds/
+│   │   └── uploads/
+│   └── gotardino/           # Jogo Gotardino (em breve)
+│       └── index.html
 ├── server/
 │   ├── game/
 │   │   └── Game.js          # Lógica principal do jogo
@@ -35,15 +54,7 @@ agario/
 │   │   ├── Player.js        # Classe de jogador
 │   │   └── Food.js          # Classe de comida
 │   └── index.js             # Servidor Express + Socket.io
-├── public/
-│   ├── index.html           # Tela de entrada
-│   ├── game.html            # Tela do jogo
-│   ├── css/
-│   │   └── style.css        # Estilos
-│   ├── js/
-│   │   ├── lobby.js         # Lógica da tela de entrada
-│   │   └── game.js          # Cliente do jogo
-│   └── uploads/             # Avatares enviados
+├── public/                  # Legacy (manter para compatibilidade)
 └── package.json
 ```
 
@@ -64,6 +75,8 @@ npm start
 ```
 
 O servidor irá rodar em `http://0.0.0.0:3000`
+
+Para acessar o portal de jogos, abra `http://localhost:3000` ou simplesmente abra o arquivo `index.html` no navegador.
 
 ## 🌐 Acessar pela Internet (IP Público)
 
@@ -173,8 +186,30 @@ PORT=8080 npm start
 - Reduza quantidade de comida no `Game.js`
 - Otimize a taxa de atualização no `server/index.js` (TICK_RATE)
 
+## ➕ Como Adicionar Novos Jogos
+
+Para adicionar um novo jogo ao portal:
+
+1. Crie uma pasta dentro de `games/` com o nome do jogo:
+   ```bash
+   mkdir games/seu-jogo
+   ```
+
+2. Adicione os arquivos do jogo (HTML, JS, CSS, assets) dentro dessa pasta
+
+3. Edite o arquivo `index.html` na raiz e adicione um novo card para o jogo:
+   ```html
+   <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer"
+        onclick="window.location.href='games/seu-jogo/index.html'">
+       <!-- Personalize o card com ícone, título, descrição e tags -->
+   </div>
+   ```
+
+4. Pronto! O novo jogo aparecerá no portal.
+
 ## 📝 Melhorias Futuras
 
+### Gotargario:
 - [ ] Sistema de skins customizáveis
 - [ ] Modo de jogo com equipes
 - [ ] Power-ups especiais
@@ -183,6 +218,12 @@ PORT=8080 npm start
 - [ ] Chat in-game
 - [ ] Mobile touch controls
 - [ ] Replay system
+
+### Portal:
+- [ ] Sistema de busca de jogos
+- [ ] Categorias/filtros
+- [ ] Sistema de favoritos
+- [ ] Estatísticas de jogo (tempo jogado, high scores)
 
 ## 📄 Licença
 

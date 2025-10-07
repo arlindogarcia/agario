@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3001;
 // Configuração do multer para upload de avatares
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../public/uploads');
+    const uploadDir = path.join(__dirname, '../games/gotargario/uploads');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -45,7 +45,8 @@ const upload = multer({
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+// Servir arquivos estáticos da raiz do projeto (index.html, games/, etc)
+app.use(express.static(path.join(__dirname, '..')));
 
 // Rota de upload de avatar
 app.post('/upload-avatar', upload.single('avatar'), (req, res) => {
@@ -55,7 +56,7 @@ app.post('/upload-avatar', upload.single('avatar'), (req, res) => {
   res.json({
     success: true,
     filename: req.file.filename,
-    path: `/uploads/${req.file.filename}`
+    path: `/games/gotargario/uploads/${req.file.filename}`
   });
 });
 
