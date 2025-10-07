@@ -9,7 +9,17 @@ const Game = require('./game/Game');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIO(server);
+
+// Configurar Socket.IO (CORS totalmente liberado)
+const io = socketIO(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
+});
 
 const PORT = process.env.PORT || 3001;
 
@@ -45,8 +55,25 @@ const upload = multer({
 
 // Middleware
 app.use(express.json());
+
+// CORS totalmente liberado
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 // Servir arquivos estáticos da raiz do projeto (index.html, games/, etc)
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '..'), {
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0,
+  etag: true
+}));
 
 // Rota de upload de avatar
 app.post('/upload-avatar', upload.single('avatar'), (req, res) => {
