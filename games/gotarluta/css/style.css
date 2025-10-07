@@ -58,6 +58,29 @@ body {
   transform: translateX(-5px);
 }
 
+.back-button-game {
+  position: fixed;
+  bottom: 100px;
+  right: 20px;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  backdrop-filter: blur(10px);
+  z-index: 2000;
+  transition: all 0.3s;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  pointer-events: all;
+}
+
+.back-button-game:hover {
+  background: rgba(255, 0, 0, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(255, 0, 0, 0.5);
+}
+
 .container {
   width: 100%;
   max-width: 500px;
@@ -318,17 +341,17 @@ body {
 
 .game-arena::before {
   content: '';
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('fundo.webp');
+  background-image: url('../fundo.webp');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
   filter: blur(5px) brightness(0.3);
-  z-index: -1;
+  z-index: 0;
+  pointer-events: none;
 }
 
 #gameCanvas {
@@ -336,6 +359,10 @@ body {
   width: 100vw;
   height: 100vh;
   background: transparent;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
 /* HUD Styles */

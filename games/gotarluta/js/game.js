@@ -279,9 +279,8 @@ function updateHUD() {
 
 // Game loop
 function gameLoop() {
-  // Clear canvas
-  ctx.fillStyle = '#0f0f1e';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Clear canvas (transparent to show background)
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Draw arena
   drawArena();
@@ -466,12 +465,27 @@ function screenShake(amount) {
 
 // Button handlers
 btnRematch.addEventListener('click', () => {
+  socket.disconnect();
   window.location.href = 'index.html';
 });
 
 btnBackToLobby.addEventListener('click', () => {
+  socket.disconnect();
   window.location.href = 'index.html';
 });
+
+// Back button during game
+const btnBackGame = document.getElementById('btnBackGame');
+if (btnBackGame) {
+  btnBackGame.addEventListener('click', (e) => {
+    e.preventDefault();
+    const confirmExit = confirm('Tem certeza que deseja sair da partida?');
+    if (confirmExit) {
+      socket.disconnect();
+      window.location.href = 'index.html';
+    }
+  });
+}
 
 // Check if Renderer is loaded
 if (typeof Renderer !== 'undefined') {
@@ -483,3 +497,4 @@ if (typeof Renderer !== 'undefined') {
 // Start game loop
 console.log('🎮 Starting game loop...');
 gameLoop();
+
