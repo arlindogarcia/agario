@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal de Jogos - Gotar Games</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @keyframes float {
@@ -79,6 +80,33 @@
         h1 {
             text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
+        
+        .player-count {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .player-count-online {
+            color: #10b981;
+            font-size: 10px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -99,6 +127,11 @@
             <!-- Gotargario Card -->
             <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer" onclick="window.location.href='games/gotargario/index.html'">
                 <div class="relative h-48 bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
+                    <div class="player-count">
+                        <span class="player-count-online">●</span>
+                        <span class="text-white" id="gotargario-count">0</span>
+                        <span class="text-gray-300 text-sm">👥</span>
+                    </div>
                     <span class="text-8xl">🔴</span>
                 </div>
                 <div class="p-6">
@@ -120,6 +153,11 @@
             <!-- Gotardino Card -->
             <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer" onclick="window.location.href='games/gotardino/index.html'">
                 <div class="relative h-48 bg-gradient-to-br from-yellow-400 to-red-500 flex items-center justify-center">
+                    <div class="player-count">
+                        <span class="player-count-online">●</span>
+                        <span class="text-white" id="gotardino-count">0</span>
+                        <span class="text-gray-300 text-sm">👥</span>
+                    </div>
                     <span class="text-8xl">🦖</span>
                 </div>
                 <div class="p-6">
@@ -141,6 +179,11 @@
             <!-- Gotaralvo Card -->
             <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer" onclick="window.location.href='games/gotaralvo/index.html'">
                 <div class="relative h-48 bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
+                    <div class="player-count">
+                        <span class="player-count-online">●</span>
+                        <span class="text-white" id="gotaralvo-count">0</span>
+                        <span class="text-gray-300 text-sm">👥</span>
+                    </div>
                     <span class="text-8xl">🎯</span>
                 </div>
                 <div class="p-6">
@@ -162,6 +205,11 @@
             <!-- GotarFighter Card -->
             <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer" onclick="window.location.href='games/gotarluta/index.html'">
                 <div class="relative h-48 bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center">
+                    <div class="player-count">
+                        <span class="player-count-online">●</span>
+                        <span class="text-white" id="gotarluta-count">0</span>
+                        <span class="text-gray-300 text-sm">👥</span>
+                    </div>
                     <span class="text-8xl">🥊</span>
                 </div>
                 <div class="p-6">
@@ -183,6 +231,11 @@
             <!-- Gotarbrinha Card -->
             <div class="game-card bg-white rounded-2xl shadow-2xl overflow-hidden cursor-pointer" onclick="window.location.href='games/gotarbrinha/index.html'">
                 <div class="relative h-48 bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <div class="player-count">
+                        <span class="player-count-online">●</span>
+                        <span class="text-white" id="gotarbrinha-count">0</span>
+                        <span class="text-gray-300 text-sm">👥</span>
+                    </div>
                     <span class="text-8xl">🐍</span>
                 </div>
                 <div class="p-6">
@@ -224,6 +277,50 @@
     </main>
 
     <script>
+        // Connect to Socket.IO to get player counts
+        const SERVER_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:3001'
+            : `https://${window.location.hostname}`;
+        
+        const socket = io(SERVER_URL, {
+            transports: ['websocket', 'polling']
+        });
+        
+        socket.on('connect', () => {
+            console.log('✅ Connected to server for player counts');
+            // Request current player counts
+            socket.emit('requestPlayerCounts');
+        });
+        
+        socket.on('playerCounts', (counts) => {
+            console.log('📊 Player counts:', counts);
+            
+            // Update all game counts
+            if (counts.gotargario !== undefined) {
+                document.getElementById('gotargario-count').textContent = counts.gotargario;
+            }
+            
+            if (counts.gotardino !== undefined) {
+                document.getElementById('gotardino-count').textContent = counts.gotardino;
+            }
+            
+            if (counts.gotaralvo !== undefined) {
+                document.getElementById('gotaralvo-count').textContent = counts.gotaralvo;
+            }
+            
+            if (counts.gotarluta !== undefined) {
+                document.getElementById('gotarluta-count').textContent = counts.gotarluta;
+            }
+            
+            if (counts.gotarbrinha !== undefined) {
+                document.getElementById('gotarbrinha-count').textContent = counts.gotarbrinha;
+            }
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+        });
+        
         // Adicionar efeito de partículas no fundo
         const colors = [
             'rgba(168, 85, 247, 0.6)', // Purple

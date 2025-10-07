@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Gotarbrinha - Snake Game</title>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 body {
@@ -958,6 +959,26 @@ function showGameOver() {
 
 }); // End of DOMContentLoaded
 
+</script>
+
+<!-- Player count tracking -->
+<script>
+  const SERVER_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : `https://${window.location.hostname}`;
+  
+  const socketTracker = io(SERVER_URL, {
+    transports: ['websocket', 'polling']
+  });
+  
+  socketTracker.on('connect', () => {
+    console.log('✅ Connected to server for player tracking');
+    socketTracker.emit('identifyGame', 'gotarbrinha');
+  });
+  
+  socketTracker.on('disconnect', () => {
+    console.log('❌ Disconnected from server');
+  });
 </script>
 </body>
 </html>

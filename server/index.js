@@ -11,6 +11,15 @@ const FightGame = require('./game/FightGame');
 const app = express();
 const server = http.createServer(app);
 
+// Track players by game type
+const playersByGame = {
+  gotargario: new Set(),
+  gotardino: new Set(),
+  gotaralvo: new Set(),
+  gotarluta: new Set(),
+  gotarbrinha: new Set()
+};
+
 // Configurar Socket.IO (CORS totalmente liberado)
 const io = socketIO(server, {
   cors: {
@@ -97,8 +106,44 @@ const fightGame = new FightGame();
 fightGame.setIO(io);
 
 // Socket.io - Gerenciamento de conexões
+// Function to broadcast player counts
+function broadcastPlayerCounts() {
+  const counts = {
+    gotargario: playersByGame.gotargario.size,
+    gotardino: playersByGame.gotardino.size,
+    gotaralvo: playersByGame.gotaralvo.size,
+    gotarluta: playersByGame.gotarluta.size,
+    gotarbrinha: playersByGame.gotarbrinha.size
+  };
+  io.emit('playerCounts', counts);
+  console.log('📊 Broadcasting player counts:', counts);
+}
+
 io.on('connection', (socket) => {
   console.log(`Novo jogador conectado: ${socket.id}`);
+  
+  // Client requests current player counts
+  socket.on('requestPlayerCounts', () => {
+    const counts = {
+      gotargario: playersByGame.gotargario.size,
+      gotardino: playersByGame.gotardino.size,
+      gotaralvo: playersByGame.gotaralvo.size,
+      gotarluta: playersByGame.gotarluta.size,
+      gotarbrinha: playersByGame.gotarbrinha.size
+    };
+    socket.emit('playerCounts', counts);
+  });
+  
+  // Player identifies which game they're playing
+  socket.on('identifyGame', (gameType) => {
+    console.log(`🎮 Socket ${socket.id.substring(0, 8)}... identified as playing ${gameType}`);
+    socket.gameType = gameType;
+    
+    if (playersByGame[gameType]) {
+      playersByGame[gameType].add(socket.id);
+      broadcastPlayerCounts();
+    }
+  });
 
   // Jogador entra no jogo
   socket.on('join', (playerData) => {
@@ -155,6 +200,12 @@ io.on('connection', (socket) => {
 
   // Desconexão
   socket.on('disconnect', () => {
+    // Remove from game-specific player tracking
+    if (socket.gameType && playersByGame[socket.gameType]) {
+      playersByGame[socket.gameType].delete(socket.id);
+      broadcastPlayerCounts();
+    }
+    
     const player = game.players.get(socket.id);
     if (player) {
       // Notificar outros jogadores

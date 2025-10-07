@@ -88,6 +88,7 @@ function init() {
 
   socket.on('connect', () => {
     console.log('Conectado ao servidor!');
+    socket.emit('identifyGame', 'gotargario'); // Identify this client as playing gotargario
     socket.emit('join', playerData);
     addChatMessage('Sistema', 'Você entrou no jogo!', true);
   });

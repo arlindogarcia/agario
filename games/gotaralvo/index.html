@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gotaralvo - Acerte o Alvo</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -591,6 +592,26 @@
         t.x = Math.min(t.x, ARENA.clientWidth - t.size - 8);
         t.el.style.left = t.x + 'px';
       })
+    });
+  </script>
+  
+  <!-- Player count tracking -->
+  <script>
+    const SERVER_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : `https://${window.location.hostname}`;
+    
+    const socket = io(SERVER_URL, {
+      transports: ['websocket', 'polling']
+    });
+    
+    socket.on('connect', () => {
+      console.log('✅ Connected to server for player tracking');
+      socket.emit('identifyGame', 'gotaralvo');
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from server');
     });
   </script>
 </body>

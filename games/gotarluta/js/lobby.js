@@ -198,6 +198,7 @@ function initializeLobby() {
 
   socket.on('connect', () => {
     console.log('Conectado ao servidor');
+    socket.emit('identifyGame', 'gotarluta'); // Identify this client as playing gotarluta
   });
 
   socket.on('disconnect', () => {

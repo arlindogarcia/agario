@@ -172,6 +172,7 @@ function updateInput() {
 
 socket.on('connect', () => {
   console.log('✅ Connected to fight server, socket.id:', socket.id);
+  socket.emit('identifyGame', 'gotarluta'); // Identify this client as playing gotarluta
   myPlayerId = socket.id;
   
   // Figure out which player I was in the lobby by comparing with localStorage
