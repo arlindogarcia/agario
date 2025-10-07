@@ -32,6 +32,7 @@ let lastUpdateTime = Date.now();
 let camera = { x: 0, y: 0, zoom: 1 };
 let mouse = { x: 0, y: 0 };
 let avatarImages = new Map();
+let lastLeaderboard = null; // Guardar último leaderboard válido
 
 // Backgrounds animados
 let backgroundImages = [];
@@ -181,6 +182,11 @@ function setupInputHandlers() {
 
   // Teclado
   window.addEventListener('keydown', (e) => {
+    // NÃO processar comandos se o chat estiver focado
+    if (document.activeElement === chatInput) {
+      return;
+    }
+
     if (e.code === 'Space') {
       e.preventDefault();
       socket.emit('split');
@@ -210,17 +216,27 @@ function updateUI() {
     document.getElementById('playerScore').textContent = currentPlayer.score;
   }
 
-  // Atualizar leaderboard
+  // Atualizar leaderboard (manter último válido)
   const leaderboardList = document.getElementById('leaderboardList');
+
+  // Se veio um novo leaderboard, atualizar e guardar
   if (gameState.leaderboard && gameState.leaderboard.length > 0) {
-    leaderboardList.innerHTML = gameState.leaderboard
-      .map((entry, index) => {
+    lastLeaderboard = gameState.leaderboard;
+  }
+
+  // Usar o último leaderboard válido
+  if (lastLeaderboard && lastLeaderboard.length > 0) {
+    leaderboardList.innerHTML = lastLeaderboard
+      .map((entry) => {
         const isCurrent = currentPlayer && entry.name === currentPlayer.name;
         return `<li class="${isCurrent ? 'current-player' : ''}">
           ${entry.name} - ${entry.score}
         </li>`;
       })
       .join('');
+  } else {
+    // Só mostrar "nenhum jogador" se realmente não houver
+    leaderboardList.innerHTML = '<li style="color: #999; font-style: italic;">Carregando...</li>';
   }
 }
 
